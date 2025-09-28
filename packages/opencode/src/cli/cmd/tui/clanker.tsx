@@ -30,7 +30,7 @@ const CLANKER_WIDTH = 40 - 2
 export const ClankerApp = () => {
   const renderer = useRenderer()
   const theme = useTheme()
-  const [projectName] = createSignal("blossom")
+  const [projectName] = createSignal("opencode")
   const [clankers] = createSignal([
     {
       id: 324,
@@ -147,7 +147,7 @@ export const ClankerApp = () => {
             border
             paddingLeft={0}
           >
-            <Chat selectedClankerId={selectedClankerId} clankers={clankers()} />
+            <Chat selectedClankerId={selectedClankerId} clankers={clankers()} project={projectName()} />
           </box>
           <ClankersStatusWrapper clankers={clankers()} />
         </box>
@@ -204,7 +204,7 @@ function Clanker(props: {
   )
 }
 
-function Chat(props: { selectedClankerId: () => number | undefined; clankers: Clanker[] }) {
+function Chat(props: { selectedClankerId: () => number | undefined; clankers: Clanker[]; project: string }) {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
 
@@ -230,6 +230,8 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
               sessionID={() => currentSessionID}
               width={() => dimensions().width - (CLANKER_WIDTH + 2) - 2 - 2} // terminal width - left panel - border - padding
               height={() => dimensions().height - 8 - 1 - 1} // terminal height - header - margins
+              clankerID={props.selectedClankerId()!}
+              project={props.project}
             />
           ) : null
         })()}

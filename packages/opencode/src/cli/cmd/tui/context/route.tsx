@@ -9,12 +9,14 @@ type Route =
       sessionID: string
     }
 
-function init(sessionId: () => string) {
+function init(sessionId: () => string, clankerID: number, project: string) {
   return {
     data() {
       return {
         type: "session" as const,
         sessionID: sessionId(),
+        clankerID,
+        project,
       }
     },
     navigate(route: Route) {
@@ -25,10 +27,16 @@ function init(sessionId: () => string) {
 
 export type RouteContext = ReturnType<typeof init>
 
-const ctx = createContext<RouteContext>()
+const ctx = createContext<RouteContext | undefined>(undefined)
 
-export function RouteProvider(props: ParentProps<{ sessionId: () => string }>) {
-  const value = init(props.sessionId)
+export function RouteProvider(props: ParentProps<{ sessionId: () => string; clankerID: number; project: string }>) {
+  console.log("RouteProvider props:", {
+    sessionId: props.sessionId(),
+    clankerID: props.clankerID,
+    project: props.project,
+  })
+  const value = init(props.sessionId, props.clankerID, props.project)
+  console.log("RouteProvider initialized with data:", value.data())
   // @ts-ignore
   return <ctx.Provider value={value}>{props.children}</ctx.Provider>
 }

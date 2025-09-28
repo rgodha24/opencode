@@ -19,13 +19,17 @@ export const OpencodeSession = ({
   sessionID,
   width,
   height,
+  clankerID,
+  project,
 }: {
   sessionID: () => string
   width: () => number
   height: () => number
+  clankerID: number
+  project: string
 }) => {
   return (
-    <RouteProvider sessionId={sessionID}>
+    <RouteProvider sessionId={sessionID} clankerID={clankerID} project={project}>
       <SDKProvider>
         <SyncProvider>
           <LocalProvider>
