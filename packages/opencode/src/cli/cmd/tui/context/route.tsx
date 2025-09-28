@@ -1,4 +1,3 @@
-import { createStore } from "solid-js/store"
 import { createContext, useContext, type ParentProps } from "solid-js"
 
 type Route =
@@ -10,22 +9,16 @@ type Route =
       sessionID: string
     }
 
-function init() {
-  const [store, setStore] = createStore<Route>(
-    process.env["OPENCODE_ROUTE"]
-      ? JSON.parse(process.env["OPENCODE_ROUTE"])
-      : {
-          type: "home",
-        },
-  )
-
+function init(sessionId: string) {
   return {
     get data() {
-      return store
+      return {
+        type: "session",
+        sessionID: sessionId,
+      }
     },
     navigate(route: Route) {
-      console.log("navigate", route)
-      setStore(route)
+      console.log("navigate doesnt work bc of stuff", route)
     },
   }
 }
@@ -34,8 +27,8 @@ export type RouteContext = ReturnType<typeof init>
 
 const ctx = createContext<RouteContext>()
 
-export function RouteProvider(props: ParentProps) {
-  const value = init()
+export function RouteProvider(props: ParentProps<{ sessionId: string }>) {
+  const value = init(props.sessionId)
   // @ts-ignore
   return <ctx.Provider value={value}>{props.children}</ctx.Provider>
 }
