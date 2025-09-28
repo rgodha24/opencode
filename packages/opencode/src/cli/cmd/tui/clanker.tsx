@@ -169,15 +169,17 @@ export const ClankerApp = () => {
       </box>
       <box height="100%" flexDirection="row">
         <box width={CLANKER_WIDTH + 2} flexDirection="column">
-          <For each={clankers()}>
-            {(clanker) => (
-              <Clanker
-                clanker={clanker}
-                selectedClankerId={selectedClankerId()}
-                setSelectedClankerId={setSelectedClankerId}
-              />
-            )}
-          </For>
+          <box width="100%" flexDirection="column">
+            <For each={clankers()}>
+              {(clanker) => (
+                <Clanker
+                  clanker={clanker}
+                  selectedClankerId={selectedClankerId()}
+                  setSelectedClankerId={setSelectedClankerId}
+                />
+              )}
+            </For>
+          </box>
           <box flexGrow={1} width="100%" onMouseDown={() => setSelectedClankerId(undefined)} />
           <box
             height={3}
@@ -197,10 +199,13 @@ export const ClankerApp = () => {
             borderColor={RGBA.fromHex(theme.currentTheme().borderSubtle)}
             border
             paddingLeft={0}
+            flexDirection="column"
           >
-            <Chat selectedClankerId={selectedClankerId} clankers={clankers()} project={projectName()} />
+            <box flexGrow={1}>
+              <Chat selectedClankerId={selectedClankerId} clankers={clankers()} project={projectName()} />
+            </box>
+            <ClankersStatusWrapper clankers={clankers()} />
           </box>
-          <ClankersStatusWrapper clankers={clankers()} />
         </box>
       </box>
     </box>
@@ -265,7 +270,7 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
   }
 
   return (
-    <box flexDirection="column" height="100%">
+    <box flexDirection="column" flexGrow={1}>
       <box
         flexGrow={1}
         style={{
