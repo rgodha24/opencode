@@ -1,7 +1,7 @@
 import { RGBA } from "@opentui/core"
 import { useRenderer, useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createSignal, createEffect, For, createMemo } from "solid-js"
-import { createWithSignal } from "solid-zustand"
+
 import { OpencodeSession } from "./session"
 
 export type Clanker = {
@@ -52,15 +52,6 @@ const STATUS_COLORS = {
   running: TOKYO_NIGHT.blue,
 }
 const CLANKER_WIDTH = 40 - 2
-
-type Store = {
-  chat: Record<number, string>
-  updateChat: (id: number, message: string) => void
-}
-const chatState = createWithSignal<Store>((set) => ({
-  chat: {},
-  updateChat: (id, message) => set((state) => ({ chat: { ...state.chat, [id]: message } })),
-}))
 
 export const ClankerApp = () => {
   const renderer = useRenderer()
@@ -218,8 +209,8 @@ function Clanker(props: {
 }
 
 function Chat(props: { selectedClankerId: () => number | undefined; clankers: Clanker[] }) {
-  const updateChat = chatState((state) => state.updateChat)
-  const chat = chatState((state) => state.chat)
+  const dimensions = useTerminalDimensions()
+
   const sessionID = () => {
     const id = props.selectedClankerId()
     return id !== undefined ? props.clankers.find((x) => x.id === id)?.sessionID : undefined
@@ -238,29 +229,14 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
         {(() => {
           const currentSessionID = sessionID()
           return props.selectedClankerId() && currentSessionID ? (
-            <OpencodeSession sessionID={() => currentSessionID} />
+            <OpencodeSession
+              sessionID={() => currentSessionID}
+              width={() => dimensions().width - (CLANKER_WIDTH + 2) - 2 - 2} // terminal width - left panel - border - padding
+              height={() => dimensions().height - 8 - 1 - 1} // terminal height - header - margins
+            />
           ) : null
         })()}
       </box>
-
-      <input
-        placeholder={props.selectedClankerId() ? "> enter message" : "> choose the agent"}
-        height={Math.max(
-          1,
-          Math.ceil((props.selectedClankerId() ? (chat()[props.selectedClankerId()!] ?? "").length : 0) / 80),
-        )}
-        focused={props.selectedClankerId() !== undefined}
-        onInput={(val) => {
-          const id = props.selectedClankerId()
-          if (id !== undefined) updateChat(id, val)
-        }}
-        value={props.selectedClankerId() ? (chat()[props.selectedClankerId()!] ?? "") : ""}
-        style={{
-          backgroundColor: TOKYO_NIGHT.bg,
-          focusedBackgroundColor: TOKYO_NIGHT.bg,
-          textColor: TOKYO_NIGHT.fg,
-        }}
-      />
     </box>
   )
 }

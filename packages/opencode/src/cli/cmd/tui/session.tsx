@@ -1,4 +1,4 @@
-import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
+import { useKeyboard, useRenderer } from "@opentui/solid"
 import { TextAttributes } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import { createEffect } from "solid-js"
@@ -15,7 +15,15 @@ import { DialogAgent } from "@tui/component/dialog-agent"
 import { KeybindProvider, useKeybind } from "@tui/context/keybind"
 import { Session } from "@tui/routes/session"
 
-export const OpencodeSession = ({ sessionID }: { sessionID: () => string }) => {
+export const OpencodeSession = ({
+  sessionID,
+  width,
+  height,
+}: {
+  sessionID: () => string
+  width: () => number
+  height: () => number
+}) => {
   return (
     <RouteProvider sessionId={sessionID}>
       <ThemeProvider>
@@ -25,7 +33,7 @@ export const OpencodeSession = ({ sessionID }: { sessionID: () => string }) => {
               <KeybindProvider>
                 <DialogProvider>
                   <CommandProvider>
-                    <App />
+                    <App width={width} height={height} />
                   </CommandProvider>
                 </DialogProvider>
               </KeybindProvider>
@@ -37,9 +45,8 @@ export const OpencodeSession = ({ sessionID }: { sessionID: () => string }) => {
   )
 }
 
-function App() {
+function App({ width, height }: { width: () => number; height: () => number }) {
   const route = useRoute()
-  const dimensions = useTerminalDimensions()
   const renderer = useRenderer()
   const dialog = useDialog()
   const local = useLocal()
@@ -94,7 +101,7 @@ function App() {
   const { currentTheme } = useTheme()
 
   return (
-    <box width={dimensions().width} height={dimensions().height} backgroundColor={currentTheme().background}>
+    <box width={width()} height={height()} backgroundColor={currentTheme().background}>
       <box flexDirection="column" flexGrow={1}>
         <Session />
       </box>
