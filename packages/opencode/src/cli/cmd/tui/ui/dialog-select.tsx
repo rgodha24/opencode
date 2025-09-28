@@ -105,7 +105,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybind = useKeybind()
 
   return (
-    <box gap={0}>
+    <box gap={1}>
       <box paddingLeft={3} paddingRight={2}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD}>{props.title}</text>
@@ -141,7 +141,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           {([category, options], index) => (
             <>
               <Show when={category}>
-                <box paddingTop={index() > 0 ? 0 : 0} paddingLeft={1}>
+                <box paddingTop={index() > 0 ? 1 : 0} paddingLeft={1}>
                   <text fg={Theme.accent} attributes={TextAttributes.BOLD}>
                     {category}
                   </text>

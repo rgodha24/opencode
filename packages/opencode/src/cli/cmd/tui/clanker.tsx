@@ -101,9 +101,9 @@ export const ClankerApp = () => {
         flexDirection: "column",
         backgroundColor: RGBA.fromHex(theme.currentTheme().backgroundElement),
       }}
-      paddingLeft={0}
+      paddingLeft={1}
     >
-      <box height={8} paddingTop={0} paddingRight={0} flexDirection="row" gap={2}>
+      <box height={8} paddingTop={1} paddingRight={1} flexDirection="row" gap={2}>
         <ascii_font
           text={selectedClankerId() ? `CLANKER ${selectedClankerId()}` : "CLANKERS"}
           style={{ font: "block", fg: RGBA.fromHex(theme.currentTheme().text) }}
@@ -134,7 +134,7 @@ export const ClankerApp = () => {
             borderStyle="single"
             borderColor={RGBA.fromHex(theme.currentTheme().borderSubtle)}
             border
-            paddingLeft={0}
+            paddingLeft={1}
           >
             <text content="main" style={{ fg: RGBA.fromHex(theme.currentTheme().success) }} />
           </box>
@@ -285,7 +285,7 @@ function ClankersStatus(props: { clankers: Clanker[] }) {
   }
 
   return (
-    <box flexDirection="column" height={boxHeight()} paddingLeft={0}>
+    <box flexDirection="column" height={boxHeight()} paddingLeft={1}>
       <For each={activeClankers()}>
         {(clanker) => (
           <box flexDirection="row">
