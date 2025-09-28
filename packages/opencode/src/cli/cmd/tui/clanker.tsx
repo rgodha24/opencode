@@ -114,12 +114,32 @@ export const ClankerApp = () => {
     return id !== undefined ? clankers().findIndex((clanker) => clanker.id === id) : -1
   })
 
+  // Checkout clanker branch
+  const checkoutClankerBranch = async () => {
+    const id = selectedClankerId()
+    if (!id) return
+
+    const branchName = `clanker/task-${id}`
+    const projectPath = "/Users/rohangodha/Developer/opencode"
+
+    try {
+      // Checkout as detached HEAD
+      await $`git checkout --detach ${branchName}`.cwd(projectPath).quiet()
+      console.log(`Checked out branch ${branchName} as detached HEAD`)
+    } catch (error) {
+      console.error(`Failed to checkout branch ${branchName}:`, error)
+    }
+  }
+
   useKeyboard((key) => {
     if (key.name === "d" && key.ctrl) {
       renderer.console.toggle()
     }
     if (key.name === "o" && key.ctrl) {
       renderer.toggleDebugOverlay()
+    }
+    if (key.name === "o" && (key.option || key.meta)) {
+      checkoutClankerBranch()
     }
     if (key.name === "j" && (key.option || key.meta)) {
       console.log(selectedClankerIndex(), "option+j")
