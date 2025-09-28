@@ -1,9 +1,12 @@
 import { RGBA } from "@opentui/core"
 import { useRenderer, useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createSignal, createEffect, For, createMemo } from "solid-js"
+import path from "path"
+import { $ } from "bun"
 
 import { OpencodeSession } from "./session"
 import { useTheme } from "./context/theme"
+import { Instance } from "@/project/instance"
 
 export type Clanker = {
   id: number
@@ -27,39 +30,45 @@ const getStatusColors = (theme: any) => ({
 })
 const CLANKER_WIDTH = 40 - 2
 
+// Initialize project with upstream before TUI starts
+async function initializeProject() {
+  const projectName = path.basename(Instance.project.worktree)
+
+  try {
+    // Get git remote origin URL
+    const upstream = await $`git remote get-url origin`
+      .cwd(Instance.project.worktree)
+      .quiet()
+      .nothrow()
+      .text()
+      .then((text) => text.trim())
+
+    if (upstream) {
+      // Create/open project via API call
+      await fetch("http://localhost:3000/projects/" + projectName + "/open", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ upstream }),
+      })
+    }
+  } catch (error) {
+    console.error("Failed to initialize project:", error)
+  }
+}
+
 export const ClankerApp = () => {
   const renderer = useRenderer()
   const theme = useTheme()
-  const [projectName] = createSignal("opencode")
-  const [clankers] = createSignal([
-    {
-      id: 324,
-      title: "title title title title title title title title title title",
-      status: "running",
-      contextusage: 23.465,
-      cost: 0.6721309412,
-      sessionID: `ses_67151623cffepFFcuR8ZAl53oi`,
-    },
-    {
-      id: 325,
-      title: "title title title title title title title title title title",
-      status: "waiting",
-      contextusage: 67.321423,
-      cost: 10.615,
-      pr_number: 41,
-      sessionID: `ses_67149c45effeciaTVy6rxDhVFL`,
-    },
-    {
-      id: 670,
-      title: "title title title title title title title title title title",
-      status: "merged",
-      contextusage: 23.465,
-      cost: 0.6721309412,
-      pr_number: 67,
-      sessionID: `ses_671cf1193ffe70abmJXUxKWo6P`,
-    },
-  ] satisfies Clanker[])
+  const [projectName] = createSignal(path.basename(Instance.project.worktree))
+  const [clankers, setClankers] = createSignal<Clanker[]>([]) // Start with empty array - no clankers
   const [selectedClankerId, setSelectedClankerId] = createSignal<number>()
+
+  // Initialize project on component mount
+  createEffect(() => {
+    initializeProject()
+  })
 
   const selectedClankerIndex = createMemo(() => {
     const id = selectedClankerId()
