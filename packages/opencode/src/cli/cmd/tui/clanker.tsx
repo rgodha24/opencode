@@ -126,9 +126,9 @@ export const ClankerApp = () => {
         flexDirection: "column",
         backgroundColor: TOKYO_NIGHT.bg,
       }}
-      paddingLeft={1}
+      paddingLeft={0}
     >
-      <box height={8} paddingTop={1} paddingRight={1} flexDirection="row" gap={2}>
+      <box height={8} paddingTop={0} paddingRight={0} flexDirection="row" gap={2}>
         <ascii_font
           text={selectedClankerId() ? `CLANKER ${selectedClankerId()}` : "CLANKERS"}
           style={{ font: "block", fg: TOKYO_NIGHT.fg }}
@@ -155,13 +155,13 @@ export const ClankerApp = () => {
             borderStyle="single"
             borderColor={TOKYO_NIGHT.dark3}
             border
-            paddingLeft={1}
+            paddingLeft={0}
           >
             <text content="main" style={{ fg: TOKYO_NIGHT.green }} />
           </box>
         </box>
         <box flexDirection="column" flexGrow={1}>
-          <box flexGrow={1} borderStyle="single" borderColor={TOKYO_NIGHT.dark3} border paddingLeft={1}>
+          <box flexGrow={1} borderStyle="single" borderColor={TOKYO_NIGHT.dark3} border paddingLeft={0}>
             <Chat selectedClankerId={selectedClankerId} clankers={clankers()} />
           </box>
           <ClankersStatusWrapper clankers={clankers()} />
@@ -222,8 +222,8 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
         flexGrow={1}
         style={{
           backgroundColor: TOKYO_NIGHT.bg_dark,
-          padding: 1,
-          marginBottom: 1,
+          padding: 0,
+          marginBottom: 0,
         }}
       >
         {(() => {
@@ -286,7 +286,7 @@ function ClankersStatus(props: { clankers: Clanker[] }) {
   }
 
   return (
-    <box flexDirection="column" height={boxHeight()} paddingLeft={1}>
+    <box flexDirection="column" height={boxHeight()} paddingLeft={0}>
       <For each={activeClankers()}>
         {(clanker) => (
           <box flexDirection="row">
