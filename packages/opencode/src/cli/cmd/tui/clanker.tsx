@@ -1,6 +1,6 @@
 import { RGBA } from "@opentui/core"
 import { useRenderer, useKeyboard, useTerminalDimensions } from "@opentui/solid"
-import { createSignal, createEffect, For } from "solid-js"
+import { createSignal, createEffect, For, createMemo } from "solid-js"
 import { createWithSignal } from "solid-zustand"
 import { OpencodeSession } from "./session"
 
@@ -53,24 +53,13 @@ const STATUS_COLORS = {
 }
 const CLANKER_WIDTH = 40 - 2
 
-type Message = {}
 type Store = {
   chat: Record<number, string>
-  messages: Record<number, Message[]>
-  addMessage: (id: number, message: string) => void
   updateChat: (id: number, message: string) => void
 }
 const chatState = createWithSignal<Store>((set) => ({
   chat: {},
-  messages: {},
   updateChat: (id, message) => set((state) => ({ chat: { ...state.chat, [id]: message } })),
-  addMessage: (id, message) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [id]: [...(state.messages[id] || []), message],
-      },
-    })),
 }))
 
 export const ClankerApp = () => {
@@ -106,10 +95,10 @@ export const ClankerApp = () => {
   ] satisfies Clanker[])
   const [selectedClankerId, setSelectedClankerId] = createSignal<number>()
 
-  const selectedClankerIndex = () => {
+  const selectedClankerIndex = createMemo(() => {
     const id = selectedClankerId()
     return id !== undefined ? clankers().findIndex((clanker) => clanker.id === id) : -1
-  }
+  })
 
   useKeyboard((key) => {
     if (key.name === "d" && key.ctrl) {
@@ -182,7 +171,7 @@ export const ClankerApp = () => {
         </box>
         <box flexDirection="column" flexGrow={1}>
           <box flexGrow={1} borderStyle="single" borderColor={TOKYO_NIGHT.dark3} border paddingLeft={1}>
-            <Chat selectedClankerId={selectedClankerId()} clankers={clankers()} />
+            <Chat selectedClankerId={selectedClankerId} clankers={clankers()} />
           </box>
           <ClankersStatusWrapper clankers={clankers()} />
         </box>
@@ -230,9 +219,11 @@ function Clanker(props: {
 
 function Chat(props: { selectedClankerId: () => number | undefined; clankers: Clanker[] }) {
   const updateChat = chatState((state) => state.updateChat)
-  const messages = chatState((state) => state.messages)
   const chat = chatState((state) => state.chat)
-  const sessionID = () => props.clankers.find((x) => x.id === props.selectedClankerId())!.sessionID
+  const sessionID = () => {
+    const id = props.selectedClankerId()
+    return id !== undefined ? props.clankers.find((x) => x.id === id)?.sessionID : undefined
+  }
 
   return (
     <box flexDirection="column" height="100%">
@@ -244,7 +235,7 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
           marginBottom: 1,
         }}
       >
-        {props.selectedClankerId() ? <OpencodeSession sessionID={sessionID} /> : null}
+        {props.selectedClankerId() && sessionID() ? <OpencodeSession sessionID={sessionID as () => string} /> : null}
       </box>
 
       <input
@@ -253,8 +244,11 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
           1,
           Math.ceil((props.selectedClankerId() ? (chat()[props.selectedClankerId()!] ?? "").length : 0) / 80),
         )}
-        focused={props.selectedClankerId !== undefined}
-        onInput={(val) => updateChat(props.selectedClankerId()!, val)}
+        focused={props.selectedClankerId() !== undefined}
+        onInput={(val) => {
+          const id = props.selectedClankerId()
+          if (id !== undefined) updateChat(id, val)
+        }}
         value={props.selectedClankerId() ? (chat()[props.selectedClankerId()!] ?? "") : ""}
         style={{
           backgroundColor: TOKYO_NIGHT.bg,
