@@ -409,10 +409,10 @@ ToolRegistry.register<typeof BashTool>({
   ready(props) {
     return (
       <>
-        <ToolTitle icon="#" fallback="Writing command..." when={props.input.command}>
-          {props.input.description}
+        <ToolTitle icon="#" fallback="Writing command..." when={props.input?.command}>
+          {props.input?.description}
         </ToolTitle>
-        <Show when={props.input.command}>
+        <Show when={props.input?.command}>
           <text fg={Theme.text}>$ {props.input.command}</text>
         </Show>
         <Show when={props.output?.trim()}>
