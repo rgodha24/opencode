@@ -63,6 +63,24 @@ export const ClankerApp = () => {
   const [projectName] = createSignal("opencode")
   const [clankers, setClankers] = createSignal<Clanker[]>([]) // Start with empty array - no clankers
   const [selectedClankerId, setSelectedClankerId] = createSignal<number>()
+  const [currentBranch, setCurrentBranch] = createSignal("main")
+
+  // Get current git branch
+  const getCurrentBranch = async () => {
+    try {
+      const branch = await $`git branch --show-current`.quiet().nothrow().text()
+      const trimmedBranch = branch.trim()
+      if (trimmedBranch) {
+        setCurrentBranch(trimmedBranch)
+      } else {
+        // Check if we're in detached HEAD state
+        const head = await $`git rev-parse --short HEAD`.quiet().nothrow().text()
+        setCurrentBranch(`HEAD (${head.trim()})`)
+      }
+    } catch (error) {
+      console.error("Failed to get current branch:", error)
+    }
+  }
 
   // Create new clanker session
   const createNewClanker = async () => {
@@ -107,6 +125,16 @@ export const ClankerApp = () => {
   // Initialize project on component mount
   createEffect(() => {
     initializeProject()
+    getCurrentBranch()
+  })
+
+  // Set up 5-second interval to update branch
+  createEffect(() => {
+    const interval = setInterval(() => {
+      getCurrentBranch()
+    }, 5000)
+
+    return () => clearInterval(interval)
   })
 
   const selectedClankerIndex = createMemo(() => {
@@ -126,6 +154,8 @@ export const ClankerApp = () => {
       await $`git fetch origin ${branchName}`.quiet()
       await $`git checkout --detach origin/${branchName}`.quiet()
       console.log(`Checked out branch ${branchName} as detached HEAD`)
+      // Update branch display immediately
+      getCurrentBranch()
     } catch (error) {
       console.error(`Failed to checkout branch ${branchName}:`, error)
     }
@@ -209,7 +239,7 @@ export const ClankerApp = () => {
             border
             paddingLeft={1}
           >
-            <text content="main" style={{ fg: RGBA.fromHex(theme.currentTheme().success) }} />
+            <text content={currentBranch()} style={{ fg: RGBA.fromHex(theme.currentTheme().success) }} />
           </box>
         </box>
         <box flexDirection="column" flexGrow={1}>
