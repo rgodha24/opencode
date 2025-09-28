@@ -3,6 +3,7 @@ import { useRenderer, useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createSignal, createEffect, For, createMemo } from "solid-js"
 
 import { OpencodeSession } from "./session"
+import { useTheme } from "./context/theme"
 
 export type Clanker = {
   id: number
@@ -19,42 +20,16 @@ export type ClankerHistoryEntry = {
   status: "running" | "waiting" | "merged"
 }
 
-// Tokyo Night Color Scheme
-const TOKYO_NIGHT = {
-  bg: RGBA.fromHex("#222436"),
-  bg_dark: RGBA.fromHex("#1e2030"),
-  bg_dark1: RGBA.fromHex("#191B29"),
-  bg_highlight: RGBA.fromHex("#2f334d"),
-  blue: RGBA.fromHex("#82aaff"),
-  blue1: RGBA.fromHex("#65bcff"),
-  blue2: RGBA.fromHex("#0db9d7"),
-  cyan: RGBA.fromHex("#86e1fc"),
-  comment: RGBA.fromHex("#636da6"),
-  dark3: RGBA.fromHex("#545c7e"),
-  dark5: RGBA.fromHex("#737aa2"),
-  fg: RGBA.fromHex("#c8d3f5"),
-  fg_dark: RGBA.fromHex("#828bb8"),
-  fg_gutter: RGBA.fromHex("#3b4261"),
-  green: RGBA.fromHex("#c3e88d"),
-  green1: RGBA.fromHex("#4fd6be"),
-  magenta: RGBA.fromHex("#c099ff"),
-  orange: RGBA.fromHex("#ff966c"),
-  purple: RGBA.fromHex("#fca7ea"),
-  red: RGBA.fromHex("#ff757f"),
-  red1: RGBA.fromHex("#c53b53"),
-  teal: RGBA.fromHex("#4fd6be"),
-  yellow: RGBA.fromHex("#ffc777"),
-}
-
-const STATUS_COLORS = {
-  merged: TOKYO_NIGHT.green,
-  waiting: TOKYO_NIGHT.yellow,
-  running: TOKYO_NIGHT.blue,
-}
+const getStatusColors = (theme: any) => ({
+  merged: RGBA.fromHex(theme.success),
+  waiting: RGBA.fromHex(theme.warning),
+  running: RGBA.fromHex(theme.primary),
+})
 const CLANKER_WIDTH = 40 - 2
 
 export const ClankerApp = () => {
   const renderer = useRenderer()
+  const theme = useTheme()
   const [projectName] = createSignal("blossom")
   const [clankers] = createSignal([
     {
@@ -124,18 +99,22 @@ export const ClankerApp = () => {
         height: "100%",
         width: "100%",
         flexDirection: "column",
-        backgroundColor: TOKYO_NIGHT.bg,
+        backgroundColor: RGBA.fromHex(theme.currentTheme().backgroundElement),
       }}
       paddingLeft={0}
     >
       <box height={8} paddingTop={0} paddingRight={0} flexDirection="row" gap={2}>
         <ascii_font
           text={selectedClankerId() ? `CLANKER ${selectedClankerId()}` : "CLANKERS"}
-          style={{ font: "block", fg: TOKYO_NIGHT.fg }}
+          style={{ font: "block", fg: RGBA.fromHex(theme.currentTheme().text) }}
         />
-        <ascii_font text="/" style={{ font: "block", fg: TOKYO_NIGHT.comment }} />
-        <ascii_font text="/" style={{ font: "block", fg: TOKYO_NIGHT.comment }} marginLeft={-3} />
-        <ascii_font text={projectName()} style={{ font: "block", fg: TOKYO_NIGHT.blue }} />
+        <ascii_font text="/" style={{ font: "block", fg: RGBA.fromHex(theme.currentTheme().textMuted) }} />
+        <ascii_font
+          text="/"
+          style={{ font: "block", fg: RGBA.fromHex(theme.currentTheme().textMuted) }}
+          marginLeft={-3}
+        />
+        <ascii_font text={projectName()} style={{ font: "block", fg: RGBA.fromHex(theme.currentTheme().primary) }} />
       </box>
       <box height="100%" flexDirection="row">
         <box width={CLANKER_WIDTH + 2} flexDirection="column">
@@ -153,15 +132,21 @@ export const ClankerApp = () => {
             height={3}
             flexDirection="column"
             borderStyle="single"
-            borderColor={TOKYO_NIGHT.dark3}
+            borderColor={RGBA.fromHex(theme.currentTheme().borderSubtle)}
             border
             paddingLeft={0}
           >
-            <text content="main" style={{ fg: TOKYO_NIGHT.green }} />
+            <text content="main" style={{ fg: RGBA.fromHex(theme.currentTheme().success) }} />
           </box>
         </box>
         <box flexDirection="column" flexGrow={1}>
-          <box flexGrow={1} borderStyle="single" borderColor={TOKYO_NIGHT.dark3} border paddingLeft={0}>
+          <box
+            flexGrow={1}
+            borderStyle="single"
+            borderColor={RGBA.fromHex(theme.currentTheme().borderSubtle)}
+            border
+            paddingLeft={0}
+          >
             <Chat selectedClankerId={selectedClankerId} clankers={clankers()} />
           </box>
           <ClankersStatusWrapper clankers={clankers()} />
@@ -176,6 +161,8 @@ function Clanker(props: {
   selectedClankerId: number | undefined
   setSelectedClankerId: (id: number | undefined) => void
 }) {
+  const theme = useTheme()
+  const statusColors = getStatusColors(theme.currentTheme())
   const isSelected = () => props.selectedClankerId === props.clanker.id
 
   return (
@@ -184,31 +171,41 @@ function Clanker(props: {
       onMouseDown={() => props.setSelectedClankerId(props.clanker.id)}
       height={5}
       style={{
-        backgroundColor: isSelected() ? TOKYO_NIGHT.bg_highlight : "transparent",
+        backgroundColor: isSelected() ? RGBA.fromHex(theme.currentTheme().backgroundPanel) : "transparent",
         padding: 1,
       }}
     >
       <box flexDirection="row" justifyContent="space-between">
-        <text content={"clanker " + props.clanker.id.toString()} style={{ fg: TOKYO_NIGHT.fg_dark }} />
-        <text content={props.clanker.status} style={{ fg: STATUS_COLORS[props.clanker.status] }} />
+        <text
+          content={"clanker " + props.clanker.id.toString()}
+          style={{ fg: RGBA.fromHex(theme.currentTheme().textMuted) }}
+        />
+        <text content={props.clanker.status} style={{ fg: statusColors[props.clanker.status] }} />
       </box>
       <box flexDirection="row" justifyContent="space-between" height={1} maxHeight={1}>
         <text
           content={props.clanker.title.slice(0, CLANKER_WIDTH - 2)}
           height={1}
           maxHeight={1}
-          style={{ fg: TOKYO_NIGHT.fg }}
+          style={{ fg: RGBA.fromHex(theme.currentTheme().text) }}
         />
       </box>
       <box flexDirection="row" justifyContent="space-between" height={1}>
-        <text content={"$" + props.clanker.cost.toFixed(2)} style={{ fg: TOKYO_NIGHT.fg_dark }} />
-        <text content={props.clanker.contextusage.toFixed(2) + "%"} style={{ fg: TOKYO_NIGHT.fg_dark }} />
+        <text
+          content={"$" + props.clanker.cost.toFixed(2)}
+          style={{ fg: RGBA.fromHex(theme.currentTheme().textMuted) }}
+        />
+        <text
+          content={props.clanker.contextusage.toFixed(2) + "%"}
+          style={{ fg: RGBA.fromHex(theme.currentTheme().textMuted) }}
+        />
       </box>
     </box>
   )
 }
 
 function Chat(props: { selectedClankerId: () => number | undefined; clankers: Clanker[] }) {
+  const theme = useTheme()
   const dimensions = useTerminalDimensions()
 
   const sessionID = () => {
@@ -221,7 +218,7 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
       <box
         flexGrow={1}
         style={{
-          backgroundColor: TOKYO_NIGHT.bg_dark,
+          backgroundColor: RGBA.fromHex(theme.currentTheme().backgroundPanel),
           padding: 0,
           marginBottom: 0,
         }}
@@ -252,6 +249,8 @@ function ClankersStatusWrapper(props: { clankers: Clanker[] }) {
 }
 
 function ClankersStatus(props: { clankers: Clanker[] }) {
+  const theme = useTheme()
+  const statusColors = getStatusColors(theme.currentTheme())
   const [history, setHistory] = createSignal<Record<number, string[]>>({})
   const dimensions = useTerminalDimensions()
 
@@ -290,8 +289,8 @@ function ClankersStatus(props: { clankers: Clanker[] }) {
       <For each={activeClankers()}>
         {(clanker) => (
           <box flexDirection="row">
-            <text content="●" style={{ fg: STATUS_COLORS[clanker.status] }} paddingRight={1} />
-            <text content={`${clanker.id}:`} style={{ fg: STATUS_COLORS[clanker.status] }} width={6} />
+            <text content="●" style={{ fg: statusColors[clanker.status] }} paddingRight={1} />
+            <text content={`${clanker.id}:`} style={{ fg: statusColors[clanker.status] }} width={6} />
             <ClankerHistory
               history={history()[clanker.id] || Array.from({ length: 240 }, () => " ")}
               width={historyWidth()}
@@ -304,14 +303,15 @@ function ClankersStatus(props: { clankers: Clanker[] }) {
 }
 
 function ClankerHistory(props: { history: string[]; width: number }) {
+  const theme = useTheme()
   const maxHistorySeconds = () => Math.max(1, props.width)
 
   return (
     <text
       content={props.history.join("").slice(-maxHistorySeconds())}
       style={{
-        bg: TOKYO_NIGHT.dark3,
-        fg: STATUS_COLORS.running,
+        bg: RGBA.fromHex(theme.currentTheme().borderSubtle),
+        fg: RGBA.fromHex(theme.currentTheme().primary),
       }}
     />
   )

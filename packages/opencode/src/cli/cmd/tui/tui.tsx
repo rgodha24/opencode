@@ -3,6 +3,7 @@ import { render } from "@opentui/solid"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import { ClankerApp } from "./clanker"
+import { ThemeProvider } from "./context/theme"
 
 export const TuiCommand = cmd({
   command: "$0 [project]",
@@ -53,8 +54,15 @@ export const TuiCommand = cmd({
       directory: process.cwd(),
       fn: () => Config.get(),
     })
-    await render(() => <ClankerApp />, {
-      useKittyKeyboard: true,
-    })
+    await render(
+      () => (
+        <ThemeProvider>
+          <ClankerApp />
+        </ThemeProvider>
+      ),
+      {
+        useKittyKeyboard: true,
+      },
+    )
   },
 })

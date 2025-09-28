@@ -1,63 +1,63 @@
-const OPENCODE_THEME = {
+const TOKYONIGHT_THEME = {
   primary: {
-    dark: "#fab283",
-    light: "#3b7dd8",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   secondary: {
-    dark: "#5c9cf5",
-    light: "#7b5bb6",
+    dark: "#c099ff",
+    light: "#9854f1",
   },
   accent: {
-    dark: "#9d7cd8",
-    light: "#d68c27",
+    dark: "#ff966c",
+    light: "#b15c00",
   },
   error: {
-    dark: "#e06c75",
-    light: "#d1383d",
+    dark: "#ff757f",
+    light: "#f52a65",
   },
   warning: {
-    dark: "#f5a742",
-    light: "#d68c27",
+    dark: "#ff966c",
+    light: "#b15c00",
   },
   success: {
-    dark: "#7fd88f",
-    light: "#3d9a57",
+    dark: "#c3e88d",
+    light: "#587539",
   },
   info: {
-    dark: "#56b6c2",
-    light: "#318795",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   text: {
-    dark: "#eeeeee",
-    light: "#1a1a1a",
+    dark: "#c8d3f5",
+    light: "#3760bf",
   },
   textMuted: {
-    dark: "#808080",
-    light: "#8a8a8a",
+    dark: "#828bb8",
+    light: "#8990a3",
   },
   background: {
-    dark: "#0a0a0a",
-    light: "#ffffff",
+    dark: "#1a1b26",
+    light: "#e1e2e7",
   },
   backgroundPanel: {
-    dark: "#141414",
-    light: "#fafafa",
+    dark: "#1e2030",
+    light: "#d5d6db",
   },
   backgroundElement: {
-    dark: "#1e1e1e",
-    light: "#f5f5f5",
+    dark: "#222436",
+    light: "#c8c9ce",
   },
   border: {
-    dark: "#484848",
-    light: "#b8b8b8",
+    dark: "#737aa2",
+    light: "#737a8c",
   },
   borderActive: {
-    dark: "#606060",
-    light: "#a0a0a0",
+    dark: "#9099b2",
+    light: "#5a607d",
   },
   borderSubtle: {
-    dark: "#3c3c3c",
-    light: "#d4d4d4",
+    dark: "#545c7e",
+    light: "#9699a8",
   },
   diffAdded: {
     dark: "#4fd6be",
@@ -92,12 +92,12 @@ const OPENCODE_THEME = {
     light: "#f7d8db",
   },
   diffContextBg: {
-    dark: "#141414",
-    light: "#fafafa",
+    dark: "#1e2030",
+    light: "#d5d6db",
   },
   diffLineNumber: {
-    dark: "#1e1e1e",
-    light: "#f5f5f5",
+    dark: "#222436",
+    light: "#c8c9ce",
   },
   diffAddedLineNumberBg: {
     dark: "#1b2b34",
@@ -108,96 +108,96 @@ const OPENCODE_THEME = {
     light: "#e7c8cb",
   },
   markdownText: {
-    dark: "#eeeeee",
-    light: "#1a1a1a",
+    dark: "#c8d3f5",
+    light: "#3760bf",
   },
   markdownHeading: {
-    dark: "#9d7cd8",
-    light: "#d68c27",
+    dark: "#c099ff",
+    light: "#9854f1",
   },
   markdownLink: {
-    dark: "#fab283",
-    light: "#3b7dd8",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   markdownLinkText: {
-    dark: "#56b6c2",
-    light: "#318795",
+    dark: "#86e1fc",
+    light: "#007197",
   },
   markdownCode: {
-    dark: "#7fd88f",
-    light: "#3d9a57",
+    dark: "#c3e88d",
+    light: "#587539",
   },
   markdownBlockQuote: {
-    dark: "#e5c07b",
-    light: "#b0851f",
+    dark: "#ffc777",
+    light: "#8c6c3e",
   },
   markdownEmph: {
-    dark: "#e5c07b",
-    light: "#b0851f",
+    dark: "#ffc777",
+    light: "#8c6c3e",
   },
   markdownStrong: {
-    dark: "#f5a742",
-    light: "#d68c27",
+    dark: "#ff966c",
+    light: "#b15c00",
   },
   markdownHorizontalRule: {
-    dark: "#808080",
-    light: "#8a8a8a",
+    dark: "#828bb8",
+    light: "#8990a3",
   },
   markdownListItem: {
-    dark: "#fab283",
-    light: "#3b7dd8",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   markdownListEnumeration: {
-    dark: "#56b6c2",
-    light: "#318795",
+    dark: "#86e1fc",
+    light: "#007197",
   },
   markdownImage: {
-    dark: "#fab283",
-    light: "#3b7dd8",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   markdownImageText: {
-    dark: "#56b6c2",
-    light: "#318795",
+    dark: "#86e1fc",
+    light: "#007197",
   },
   markdownCodeBlock: {
-    dark: "#eeeeee",
-    light: "#1a1a1a",
+    dark: "#c8d3f5",
+    light: "#3760bf",
   },
   syntaxComment: {
-    dark: "#808080",
-    light: "#8a8a8a",
+    dark: "#828bb8",
+    light: "#8990a3",
   },
   syntaxKeyword: {
-    dark: "#9d7cd8",
-    light: "#d68c27",
+    dark: "#c099ff",
+    light: "#9854f1",
   },
   syntaxFunction: {
-    dark: "#fab283",
-    light: "#3b7dd8",
+    dark: "#82aaff",
+    light: "#2e7de9",
   },
   syntaxVariable: {
-    dark: "#e06c75",
-    light: "#d1383d",
+    dark: "#ff757f",
+    light: "#f52a65",
   },
   syntaxString: {
-    dark: "#7fd88f",
-    light: "#3d9a57",
+    dark: "#c3e88d",
+    light: "#587539",
   },
   syntaxNumber: {
-    dark: "#f5a742",
-    light: "#d68c27",
+    dark: "#ff966c",
+    light: "#b15c00",
   },
   syntaxType: {
-    dark: "#e5c07b",
-    light: "#b0851f",
+    dark: "#ffc777",
+    light: "#8c6c3e",
   },
   syntaxOperator: {
-    dark: "#56b6c2",
-    light: "#318795",
+    dark: "#86e1fc",
+    light: "#007197",
   },
   syntaxPunctuation: {
-    dark: "#eeeeee",
-    light: "#1a1a1a",
+    dark: "#c8d3f5",
+    light: "#3760bf",
   },
 } as const
 
@@ -257,7 +257,7 @@ type Theme = {
 import { createContext, useContext, createSignal, createEffect, onMount } from "solid-js"
 import { Storage } from "@/storage/storage"
 
-export const Theme = Object.entries(OPENCODE_THEME).reduce((acc, [key, value]) => {
+export const Theme = Object.entries(TOKYONIGHT_THEME).reduce((acc, [key, value]) => {
   acc[key as keyof Theme] = value.dark
   return acc
 }, {} as Theme)
@@ -311,7 +311,7 @@ export function ThemeProvider(props: { children: any }) {
 
   const currentTheme = () => {
     const dark = isDark()
-    return Object.entries(OPENCODE_THEME).reduce((acc, [key, value]) => {
+    return Object.entries(TOKYONIGHT_THEME).reduce((acc, [key, value]) => {
       acc[key as keyof Theme] = dark ? value.dark : value.light
       return acc
     }, {} as Theme)

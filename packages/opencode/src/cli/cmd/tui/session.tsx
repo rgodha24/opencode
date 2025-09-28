@@ -2,7 +2,7 @@ import { useKeyboard, useRenderer } from "@opentui/solid"
 import { TextAttributes } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
 import { createEffect } from "solid-js"
-import { ThemeProvider, useTheme } from "@tui/context/theme"
+import { useTheme } from "@tui/context/theme"
 import { Installation } from "@/installation"
 import { Global } from "@/global"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
@@ -26,21 +26,19 @@ export const OpencodeSession = ({
 }) => {
   return (
     <RouteProvider sessionId={sessionID}>
-      <ThemeProvider>
-        <SDKProvider>
-          <SyncProvider>
-            <LocalProvider>
-              <KeybindProvider>
-                <DialogProvider>
-                  <CommandProvider>
-                    <App width={width} height={height} />
-                  </CommandProvider>
-                </DialogProvider>
-              </KeybindProvider>
-            </LocalProvider>
-          </SyncProvider>
-        </SDKProvider>
-      </ThemeProvider>
+      <SDKProvider>
+        <SyncProvider>
+          <LocalProvider>
+            <KeybindProvider>
+              <DialogProvider>
+                <CommandProvider>
+                  <App width={width} height={height} />
+                </CommandProvider>
+              </DialogProvider>
+            </KeybindProvider>
+          </LocalProvider>
+        </SyncProvider>
+      </SDKProvider>
     </RouteProvider>
   )
 }
