@@ -413,7 +413,7 @@ ToolRegistry.register<typeof BashTool>({
           {props.input?.description}
         </ToolTitle>
         <Show when={props.input?.command}>
-          <text fg={Theme.text}>$ {props.input.command}</text>
+          <text fg={Theme.text}>$ {props.input?.command}</text>
         </Show>
         <Show when={props.output?.trim()}>
           <box>
@@ -447,8 +447,8 @@ ToolRegistry.register<typeof ReadTool>({
   ready(props) {
     return (
       <>
-        <ToolTitle icon="→" fallback="Reading file..." when={props.input.filePath}>
-          Read {normalizePath(props.input.filePath!)}
+        <ToolTitle icon="→" fallback="Reading file..." when={props.input?.filePath}>
+          Read {normalizePath(props.input?.filePath || "")}
         </ToolTitle>
       </>
     )
@@ -460,10 +460,10 @@ ToolRegistry.register<typeof WriteTool>({
   container: "block",
   ready(props) {
     const lines = createMemo(() => {
-      return props.input.content?.split("\n") ?? []
+      return props.input?.content?.split("\n") ?? []
     })
     const code = createMemo(() => {
-      if (!props.input.content) return ""
+      if (!props.input?.content) return ""
       const text = props.input.content
       return text
     })
@@ -477,8 +477,8 @@ ToolRegistry.register<typeof WriteTool>({
 
     return (
       <>
-        <ToolTitle icon="←" fallback="Preparing write..." when={props.input.filePath}>
-          Wrote {props.input.filePath}
+        <ToolTitle icon="←" fallback="Preparing write..." when={props.input?.filePath}>
+          Wrote {props.input?.filePath}
         </ToolTitle>
         <box flexDirection="row">
           <box flexShrink={0}>
@@ -499,8 +499,8 @@ ToolRegistry.register<typeof GlobTool>({
   ready(props) {
     return (
       <>
-        <ToolTitle icon="✱" fallback="Finding files..." when={props.input.pattern}>
-          Glob "{props.input.pattern}" <Show when={props.metadata.count}>({props.metadata.count} matches)</Show>
+        <ToolTitle icon="✱" fallback="Finding files..." when={props.input?.pattern}>
+          Glob "{props.input?.pattern}" <Show when={props.metadata?.count}>({props.metadata?.count} matches)</Show>
         </ToolTitle>
       </>
     )
@@ -512,8 +512,8 @@ ToolRegistry.register<typeof GrepTool>({
   container: "inline",
   ready(props) {
     return (
-      <ToolTitle icon="✱" fallback="Searching content..." when={props.input.pattern}>
-        Grep "{props.input.pattern}"
+      <ToolTitle icon="✱" fallback="Searching content..." when={props.input?.pattern}>
+        Grep "{props.input?.pattern}"
       </ToolTitle>
     )
   },
@@ -524,14 +524,14 @@ ToolRegistry.register<typeof ListTool>({
   container: "inline",
   ready(props) {
     const dir = createMemo(() => {
-      if (props.input.path) {
+      if (props.input?.path) {
         return normalizePath(props.input.path)
       }
       return ""
     })
     return (
       <>
-        <ToolTitle icon="→" fallback="Listing directory..." when={props.input.path !== undefined}>
+        <ToolTitle icon="→" fallback="Listing directory..." when={props.input?.path !== undefined}>
           List {dir()}
         </ToolTitle>
       </>
@@ -545,12 +545,12 @@ ToolRegistry.register<typeof TaskTool>({
   ready(props) {
     return (
       <>
-        <ToolTitle icon="%" fallback="Delegating..." when={props.input.description}>
-          Task {props.input.description}
+        <ToolTitle icon="%" fallback="Delegating..." when={props.input?.description}>
+          Task {props.input?.description}
         </ToolTitle>
-        <Show when={props.metadata.summary?.length}>
+        <Show when={props.metadata?.summary?.length}>
           <box>
-            <For each={props.metadata.summary ?? []}>
+            <For each={props.metadata?.summary ?? []}>
               {(task) => (
                 <text style={{ fg: Theme.textMuted }}>
                   ∟ {task.tool} {task.state.status === "completed" ? task.state.title : ""}
@@ -581,14 +581,14 @@ ToolRegistry.register<typeof EditTool>({
   container: "block",
   ready(props) {
     const code = createMemo(() => {
-      if (!props.metadata.diff) return ""
+      if (!props.metadata?.diff) return ""
       const text = props.metadata.diff.split("\n").slice(5).join("\n")
       return text
     })
     return (
       <>
-        <ToolTitle icon="←" fallback="Preparing edit..." when={props.input.filePath}>
-          Edit {normalizePath(props.input.filePath!)}
+        <ToolTitle icon="←" fallback="Preparing edit..." when={props.input?.filePath}>
+          Edit {normalizePath(props.input?.filePath || "")}
         </ToolTitle>
         <Show when={code()}>
           <box paddingLeft={1}>
@@ -625,7 +625,7 @@ ToolRegistry.register<typeof TodoWriteTool>({
   ready(props) {
     return (
       <box>
-        <For each={props.input.todos ?? []}>
+        <For each={props.input?.todos ?? []}>
           {(todo) => (
             <text style={{ fg: todo.status === "in_progress" ? Theme.success : Theme.textMuted }}>
               [{todo.status === "completed" ? "✓" : " "}] {todo.content}
