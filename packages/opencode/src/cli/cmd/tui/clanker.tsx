@@ -235,7 +235,12 @@ function Chat(props: { selectedClankerId: () => number | undefined; clankers: Cl
           marginBottom: 1,
         }}
       >
-        {props.selectedClankerId() && sessionID() ? <OpencodeSession sessionID={sessionID as () => string} /> : null}
+        {(() => {
+          const currentSessionID = sessionID()
+          return props.selectedClankerId() && currentSessionID ? (
+            <OpencodeSession sessionID={() => currentSessionID} />
+          ) : null
+        })()}
       </box>
 
       <input

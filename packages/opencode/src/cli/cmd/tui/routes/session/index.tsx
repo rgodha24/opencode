@@ -30,7 +30,7 @@ import { useKeybind } from "@tui/context/keybind"
 import { Header } from "./header"
 
 export function Session() {
-  const route = useRouteData("session")
+  const route = useRouteData()
   const sync = useSync()
   const session = createMemo(() => sync.session.get(route.sessionID)!)
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])

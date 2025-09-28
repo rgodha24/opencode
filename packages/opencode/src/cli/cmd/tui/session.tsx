@@ -17,7 +17,7 @@ import { Session } from "@tui/routes/session"
 
 export const OpencodeSession = ({ sessionID }: { sessionID: () => string }) => {
   return (
-    <RouteProvider sessionId={sessionID()}>
+    <RouteProvider sessionId={sessionID}>
       <ThemeProvider>
         <SDKProvider>
           <SyncProvider>

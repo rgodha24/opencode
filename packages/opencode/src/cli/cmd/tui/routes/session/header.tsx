@@ -8,7 +8,7 @@ import { Locale } from "@/util/locale"
 import type { AssistantMessage } from "@opencode-ai/sdk"
 
 export function Header() {
-  const route = useRouteData("session")
+  const route = useRouteData()
   const sync = useSync()
   const session = createMemo(() => sync.session.get(route.sessionID)!)
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
