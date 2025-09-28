@@ -120,11 +120,11 @@ export const ClankerApp = () => {
     if (!id) return
 
     const branchName = `clanker/task-${id}`
-    const projectPath = "/Users/rohangodha/Developer/opencode"
 
     try {
       // Checkout as detached HEAD
-      await $`git checkout --detach ${branchName}`.cwd(projectPath).quiet()
+      await $`git fetch origin ${branchName}`.quiet()
+      await $`git checkout --detach origin/${branchName}`.quiet()
       console.log(`Checked out branch ${branchName} as detached HEAD`)
     } catch (error) {
       console.error(`Failed to checkout branch ${branchName}:`, error)
