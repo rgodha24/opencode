@@ -1,12 +1,10 @@
 import { RGBA } from "@opentui/core"
 import { useRenderer, useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createSignal, createEffect, For, createMemo } from "solid-js"
-import path from "path"
 import { $ } from "bun"
 
 import { OpencodeSession } from "./session"
 import { useTheme } from "./context/theme"
-import { Instance } from "@/project/instance"
 
 export type Clanker = {
   id: number
@@ -32,12 +30,13 @@ const CLANKER_WIDTH = 40 - 2
 
 // Initialize project with upstream before TUI starts
 async function initializeProject() {
-  const projectName = path.basename(Instance.project.worktree)
+  const projectName = "opencode"
+  const projectPath = "/Users/rohangodha/Developer/opencode"
 
   try {
     // Get git remote origin URL
     const upstream = await $`git remote get-url origin`
-      .cwd(Instance.project.worktree)
+      .cwd(projectPath)
       .quiet()
       .nothrow()
       .text()
@@ -61,9 +60,49 @@ async function initializeProject() {
 export const ClankerApp = () => {
   const renderer = useRenderer()
   const theme = useTheme()
-  const [projectName] = createSignal(path.basename(Instance.project.worktree))
+  const [projectName] = createSignal("opencode")
   const [clankers, setClankers] = createSignal<Clanker[]>([]) // Start with empty array - no clankers
   const [selectedClankerId, setSelectedClankerId] = createSignal<number>()
+
+  // Create new clanker session
+  const createNewClanker = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/projects/${projectName()}/clankers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const { taskId } = await response.json()
+
+        // Fetch the updated task to get full details
+        const tasksResponse = await fetch(`http://localhost:3000/projects/${projectName()}/tasks`)
+        if (tasksResponse.ok) {
+          const { tasks } = await tasksResponse.json()
+          const newTask = tasks.find((t: any) => t.id === taskId)
+
+          if (newTask) {
+            const newClanker: Clanker = {
+              id: newTask.id,
+              title: newTask.title,
+              status: "waiting",
+              contextusage: newTask.contextusage,
+              cost: newTask.cost,
+              pr_number: newTask.pr_number,
+              sessionID: newTask.sessionID,
+            }
+
+            setClankers((prev) => [...prev, newClanker])
+            setSelectedClankerId(taskId)
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to create new clanker:", error)
+    }
+  }
 
   // Initialize project on component mount
   createEffect(() => {
@@ -99,6 +138,9 @@ export const ClankerApp = () => {
       } else {
         setSelectedClankerId(clankers()[clankers().length - 1]?.id)
       }
+    }
+    if (key.name === "n" && (key.option || key.meta)) {
+      createNewClanker()
     }
   })
 
