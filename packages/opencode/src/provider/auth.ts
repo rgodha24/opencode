@@ -92,23 +92,21 @@ export namespace ProviderAuth {
       }
 
       if (result?.type === "success") {
+        const saveProvider = result.provider ?? input.providerID
         if ("key" in result) {
-          await Auth.set(input.providerID, {
+          await Auth.set(saveProvider, {
             type: "api",
             key: result.key,
           })
         }
         if ("refresh" in result) {
-          const info: Auth.Info = {
-            type: "oauth",
-            access: result.access,
+          await Auth.addOAuth(saveProvider, {
             refresh: result.refresh,
+            access: result.access,
             expires: result.expires,
-          }
-          if (result.accountId) {
-            info.accountId = result.accountId
-          }
-          await Auth.set(input.providerID, info)
+            accountId: result.accountId,
+            enterpriseUrl: result.enterpriseUrl,
+          })
         }
         return
       }

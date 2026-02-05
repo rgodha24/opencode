@@ -1179,6 +1179,25 @@ export namespace Config {
             .describe("Timeout in milliseconds for model context protocol (MCP) requests"),
         })
         .optional(),
+      failover: z
+        .record(
+          z.string(),
+          z.object({
+            name: z.string().describe("Display name for the virtual model"),
+            chain: z
+              .array(
+                z.object({
+                  provider: z.string().describe("Provider ID"),
+                  model: z.string().describe("Model ID for that provider"),
+                  account: z.string().optional().describe("OAuth account label to pin to (omit for auto-rotation)"),
+                }),
+              )
+              .min(1)
+              .describe("Ordered list of providers to try"),
+          }),
+        )
+        .optional()
+        .describe("Virtual models with provider failover chains"),
     })
     .strict()
     .meta({

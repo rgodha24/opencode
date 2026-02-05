@@ -22,6 +22,11 @@ import { SystemPrompt } from "./system"
 import { Flag } from "@/flag/flag"
 import { PermissionNext } from "@/permission/next"
 import { Auth } from "@/auth"
+import { FailoverPool, type FailoverChainEntry } from "@/failover"
+import { Bus } from "@/bus"
+import { TuiEvent } from "@/cli/cmd/tui/event"
+import { Auth } from "@/auth"
+import { withOAuthRecord } from "@/auth/context"
 
 export namespace LLM {
   const log = Log.create({ service: "llm" })
@@ -43,7 +48,150 @@ export namespace LLM {
 
   export type StreamOutput = StreamTextResult<ToolSet, unknown>
 
-  export async function stream(input: StreamInput) {
+  export async function stream(input: StreamInput): Promise<StreamOutput> {
+    if (input.model.providerID === "failover") {
+      return streamWithFailover(input)
+    }
+    return streamInternal(input)
+  }
+
+  async function streamWithFailover(input: StreamInput): Promise<StreamOutput> {
+    const chain = input.model.options.failoverChain as FailoverChainEntry[]
+    if (!chain || chain.length === 0) {
+      throw new Error(`Failover model ${input.model.id} has no chain configured`)
+    }
+
+    for (let i = 0; i < chain.length; i++) {
+      const entry = chain[i]
+
+      if (!(await FailoverPool.isAvailable(entry.provider, entry.model))) {
+        continue
+      }
+
+      // If a specific account is specified, resolve it and check if it's available
+      let pinnedRecordID: string | undefined
+      if (entry.account) {
+        pinnedRecordID = await Auth.OAuthPool.getRecordIDByLabel(entry.provider, entry.account)
+        if (!pinnedRecordID) {
+          log.warn("account label not found, skipping", { provider: entry.provider, account: entry.account })
+          continue
+        }
+      }
+
+      // Pre-check: if all OAuth accounts for this provider are on cooldown, skip to next provider
+      // (only applies when no specific account is pinned - if pinned, we'll let it fail naturally)
+      if (!pinnedRecordID && (await Auth.OAuthPool.allOnCooldown(entry.provider))) {
+        log.info("all OAuth accounts on cooldown, skipping provider", { provider: entry.provider })
+        await FailoverPool.recordOutcome({
+          providerID: entry.provider,
+          modelID: entry.model,
+          statusCode: 429,
+          ok: false,
+          cooldownUntil: Date.now() + 30_000, // Brief cooldown to avoid repeated checks
+        })
+
+        if (i + 1 < chain.length) {
+          Bus.publish(TuiEvent.ToastShow, {
+            message: `Switched from ${entry.provider} to ${chain[i + 1].provider} (all accounts on cooldown)`,
+            variant: "info",
+            duration: 3000,
+          })
+        }
+
+        continue
+      }
+
+      try {
+        const actualModel = await Provider.getModel(entry.provider, entry.model)
+        const modifiedInput = { ...input, model: actualModel }
+
+        // If a specific account is pinned, wrap with withOAuthRecord to use only that account
+        const result = pinnedRecordID
+          ? await withOAuthRecord(entry.provider, pinnedRecordID, () => streamInternal(modifiedInput))
+          : await streamInternal(modifiedInput)
+
+        await FailoverPool.recordOutcome({
+          providerID: entry.provider,
+          modelID: entry.model,
+          statusCode: 200,
+          ok: true,
+        })
+
+        return result
+      } catch (e) {
+        if (isRateLimitError(e)) {
+          const cooldownMs = extractRetryAfter(e) ?? 30_000
+          await FailoverPool.recordOutcome({
+            providerID: entry.provider,
+            modelID: entry.model,
+            statusCode: 429,
+            ok: false,
+            cooldownUntil: Date.now() + cooldownMs,
+          })
+
+          if (i + 1 < chain.length) {
+            Bus.publish(TuiEvent.ToastShow, {
+              message: `Switched from ${entry.provider} to ${chain[i + 1].provider}`,
+              variant: "info",
+              duration: 3000,
+            })
+          }
+
+          continue
+        }
+
+        await FailoverPool.recordOutcome({
+          providerID: entry.provider,
+          modelID: entry.model,
+          statusCode: 0,
+          ok: false,
+        })
+        throw e
+      }
+    }
+
+    throw new Error("All providers in failover chain exhausted or on cooldown")
+  }
+
+  function isRateLimitError(e: unknown): boolean {
+    if (e instanceof Error) {
+      const msg = e.message.toLowerCase()
+      if (
+        msg.includes("429") ||
+        msg.includes("rate limit") ||
+        msg.includes("too many requests") ||
+        msg.includes("cooldown") ||
+        msg.includes("credit balance")
+      ) {
+        return true
+      }
+      if ("status" in e && (e as any).status === 429) {
+        return true
+      }
+      if ("statusCode" in e && (e as any).statusCode === 429) {
+        return true
+      }
+      if ("isAllAccountsOnCooldown" in e && (e as any).isAllAccountsOnCooldown === true) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function extractRetryAfter(e: unknown): number | undefined {
+    if (e instanceof Error && "headers" in e) {
+      const headers = (e as any).headers
+      const value = headers?.get?.("retry-after") ?? headers?.["retry-after"]
+      if (!value) return undefined
+      const seconds = Number(value)
+      if (Number.isFinite(seconds)) return Math.max(0, seconds) * 1000
+      const dateMs = Date.parse(value)
+      if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now())
+    }
+    return undefined
+  }
+
+  async function streamInternal(input: StreamInput): Promise<StreamOutput> {
     const l = log
       .clone()
       .tag("providerID", input.model.providerID)

@@ -966,6 +966,66 @@ export namespace Provider {
       log.info("found", { providerID })
     }
 
+    // Create failover virtual models from config
+    if (config.failover && Object.keys(config.failover).length > 0) {
+      const failoverModels: Record<string, Model> = {}
+
+      for (const [modelID, failoverConfig] of Object.entries(config.failover)) {
+        // Check if at least one provider in the chain is connected
+        const hasConnectedProvider = failoverConfig.chain.some((entry) => providers[entry.provider])
+        if (!hasConnectedProvider) {
+          log.info("skipping failover model, no connected providers", { modelID })
+          continue
+        }
+
+        // Use the first available provider's model as a template for capabilities
+        const firstEntry = failoverConfig.chain.find((entry) => providers[entry.provider]?.models[entry.model])
+        const templateModel = firstEntry ? providers[firstEntry.provider].models[firstEntry.model] : null
+
+        failoverModels[modelID] = {
+          id: modelID,
+          name: failoverConfig.name,
+          providerID: "failover",
+          api: {
+            id: modelID,
+            npm: "@ai-sdk/openai-compatible",
+            url: "",
+          },
+          status: "active",
+          capabilities: templateModel?.capabilities ?? {
+            temperature: false,
+            reasoning: false,
+            attachment: true,
+            toolcall: true,
+            input: { text: true, audio: false, image: true, video: false, pdf: true },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false,
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          limit: templateModel?.limit ?? { context: 200000, output: 32000 },
+          options: {
+            failoverChain: failoverConfig.chain,
+          },
+          headers: {},
+          family: "failover",
+          release_date: "",
+          variants: {},
+        }
+      }
+
+      if (Object.keys(failoverModels).length > 0) {
+        providers["failover"] = {
+          id: "failover",
+          name: "Failover",
+          env: [],
+          options: {},
+          source: "config",
+          models: failoverModels,
+        }
+        log.info("found", { providerID: "failover" })
+      }
+    }
+
     return {
       models: languages,
       providers,
