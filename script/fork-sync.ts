@@ -34,6 +34,12 @@ async function main() {
   console.log("Checking out fresh dev from upstream/dev...")
   await $`git checkout -B dev upstream/dev`
 
+  // Remove upstream workflow files that would require workflows permission to push
+  // Keep only our fork-sync.yml which will be added back when merging fork/failover
+  console.log("Removing upstream workflow files...")
+  await $`git rm -rf .github/workflows/`.nothrow()
+  await $`git commit -m "chore: remove upstream workflows" --allow-empty`.nothrow()
+
   // Merge fork branches
   console.log("\n=== Merging fork branches ===")
   for (const branch of FORK_BRANCHES) {

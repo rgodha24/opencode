@@ -3,6 +3,7 @@ import fs from "fs/promises"
 import { Global } from "../global"
 import z from "zod"
 import { ulid } from "ulid"
+import { Filesystem } from "../util/filesystem"
 import { getOAuthRecordID } from "./context"
 import { getSecretsBackend } from "./secrets"
 
