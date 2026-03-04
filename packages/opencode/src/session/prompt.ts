@@ -22,7 +22,6 @@ import PROMPT_PLAN from "../session/prompt/plan.txt"
 import BUILD_SWITCH from "../session/prompt/build-switch.txt"
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { defer } from "../util/defer"
-import { clone } from "remeda"
 import { ToolRegistry } from "../tool/registry"
 import { MCP } from "../mcp"
 import { LSP } from "../lsp"
@@ -534,6 +533,7 @@ export namespace SessionPrompt {
           abort,
           sessionID,
           auto: task.auto,
+          overflow: task.overflow,
         })
         if (result === "stop") break
         continue
@@ -627,11 +627,9 @@ export namespace SessionPrompt {
         })
       }
 
-      const sessionMessages = clone(msgs)
-
       // Ephemerally wrap queued user messages with a reminder to stay on track
       if (step > 1 && lastFinished) {
-        for (const msg of sessionMessages) {
+        for (const msg of msgs) {
           if (msg.info.role !== "user" || msg.info.id <= lastFinished.id) continue
           for (const part of msg.parts) {
             if (part.type !== "text" || part.ignored || part.synthetic) continue
@@ -648,7 +646,7 @@ export namespace SessionPrompt {
         }
       }
 
-      await Plugin.trigger("experimental.chat.messages.transform", {}, { messages: sessionMessages })
+      await Plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
       // Build system prompt, adding structured output instruction if needed
       const system = [...(await SystemPrompt.environment(model)), ...(await InstructionPrompt.system())]
@@ -664,7 +662,7 @@ export namespace SessionPrompt {
         sessionID,
         system,
         messages: [
-          ...MessageV2.toModelMessages(sessionMessages, model),
+          ...MessageV2.toModelMessages(msgs, model),
           ...(isLastStep
             ? [
                 {
@@ -710,6 +708,7 @@ export namespace SessionPrompt {
           agent: lastUser.agent,
           model: lastUser.model,
           auto: true,
+          overflow: !processor.message.finish,
         })
       }
       continue
@@ -909,7 +908,12 @@ export namespace SessionPrompt {
           title: "",
           metadata,
           output: truncated.content,
-          attachments,
+          attachments: attachments.map((attachment) => ({
+            ...attachment,
+            id: Identifier.ascending("part"),
+            sessionID: ctx.sessionID,
+            messageID: input.processor.message.id,
+          })),
           content: result.content, // directly return content to preserve ordering when outputting to model
         }
       }

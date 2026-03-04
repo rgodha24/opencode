@@ -8,6 +8,7 @@ import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
+import { usePermission } from "@/context/permission"
 import { type ImageAttachmentPart, type Prompt, usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
@@ -27,6 +28,7 @@ type PromptSubmitInput = {
   info: Accessor<{ id: string } | undefined>
   imageAttachments: Accessor<ImageAttachmentPart[]>
   commentCount: Accessor<number>
+  autoAccept: Accessor<boolean>
   mode: Accessor<"normal" | "shell">
   working: Accessor<boolean>
   editor: () => HTMLDivElement | undefined
@@ -56,6 +58,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const sync = useSync()
   const globalSync = useGlobalSync()
   const local = useLocal()
+  const permission = usePermission()
   const prompt = usePrompt()
   const layout = useLayout()
   const language = useLanguage()
@@ -73,12 +76,16 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const abort = async () => {
     const sessionID = params.id
     if (!sessionID) return Promise.resolve()
+
+    globalSync.todo.set(sessionID, [])
+    const [, setStore] = globalSync.child(sdk.directory)
+    setStore("todo", sessionID, [])
+
     const queued = pending.get(sessionID)
     if (queued) {
       queued.abort.abort()
       queued.cleanup()
       pending.delete(sessionID)
-      globalSync.todo.set(sessionID, undefined)
       return Promise.resolve()
     }
     return sdk.client.session
@@ -86,9 +93,6 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         sessionID,
       })
       .catch(() => {})
-      .finally(() => {
-        globalSync.todo.set(sessionID, undefined)
-      })
   }
 
   const restoreCommentItems = (items: CommentItem[]) => {
@@ -139,6 +143,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     const projectDirectory = sdk.directory
     const isNewSession = !params.id
+    const shouldAutoAccept = isNewSession && input.autoAccept()
     const worktreeSelection = input.newSessionWorktree?.() || "main"
 
     let sessionDirectory = projectDirectory
@@ -196,6 +201,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           return undefined
         })
       if (session) {
+        if (shouldAutoAccept) permission.enableAutoAccept(session.id, sessionDirectory)
         layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
         navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)
       }

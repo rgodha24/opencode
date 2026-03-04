@@ -327,25 +327,37 @@ export namespace Auth {
   }
 
   export async function set(key: string, info: Info) {
+    const normalized = key.replace(/\/+$/, "")
     const store = await loadStoreFile()
 
     if (info.type === "api") {
-      store.providers[key] = { type: "api" as const, key: info.key }
+      if (normalized !== key) delete store.providers[key]
+      delete store.providers[normalized + "/"]
+      store.providers[normalized] = { type: "api" as const, key: info.key }
       await writeStoreFile(store)
       return
     }
 
     if (info.type === "wellknown") {
-      store.providers[key] = { type: "wellknown" as const, key: info.key, token: info.token }
+      if (normalized !== key) delete store.providers[key]
+      delete store.providers[normalized + "/"]
+      store.providers[normalized] = { type: "wellknown" as const, key: info.key, token: info.token }
       await writeStoreFile(store)
       return
     }
 
+    const candidate = store.providers[normalized] ?? store.providers[key] ?? store.providers[normalized + "/"]
+    if (candidate && candidate.type === "oauth") {
+      store.providers[normalized] = candidate
+    }
+    if (normalized !== key) delete store.providers[key]
+    delete store.providers[normalized + "/"]
+
     const namespace = "default"
-    const provider = ensureOAuthProvider(store, key)
+    const provider = ensureOAuthProvider(store, normalized)
     const recordID =
-      getOAuthRecordID(key) ??
-      (await findOAuthRecordIDByRefreshToken({ providerID: key, namespace, refresh: info.refresh, provider })) ??
+      getOAuthRecordID(normalized) ??
+      (await findOAuthRecordIDByRefreshToken({ providerID: normalized, namespace, refresh: info.refresh, provider })) ??
       provider.active[namespace] ??
       recordIDsForNamespace(provider, namespace)[0] ??
       ulid()
@@ -370,7 +382,7 @@ export namespace Auth {
     provider.active[namespace] = recordID
 
     await setOAuthSecret({
-      providerID: key,
+      providerID: normalized,
       namespace,
       recordID,
       secret: { refresh: info.refresh, access: info.access, expires: info.expires },
@@ -380,18 +392,29 @@ export namespace Auth {
   }
 
   export async function remove(key: string) {
+    const normalized = key.replace(/\/+$/, "")
     const store = await loadStoreFile()
-    const existing = store.providers[key]
+    const providerID =
+      (store.providers[normalized] && normalized) ||
+      (store.providers[key] && key) ||
+      (store.providers[normalized + "/"] && normalized + "/")
+    if (!providerID) return
+
+    const existing = store.providers[providerID]
     if (!existing) return
 
     if (existing.type === "api") {
       delete store.providers[key]
+      delete store.providers[normalized]
+      delete store.providers[normalized + "/"]
       await writeStoreFile(store)
       return
     }
 
     if (existing.type === "wellknown") {
       delete store.providers[key]
+      delete store.providers[normalized]
+      delete store.providers[normalized + "/"]
       await writeStoreFile(store)
       return
     }
@@ -401,11 +424,13 @@ export namespace Auth {
       await secrets
         .delete({
           service: SERVICE,
-          name: oauthSecretName({ providerID: key, namespace: record.namespace, recordID: record.id }),
+          name: oauthSecretName({ providerID, namespace: record.namespace, recordID: record.id }),
         })
         .catch(() => false)
     }
     delete store.providers[key]
+    delete store.providers[normalized]
+    delete store.providers[normalized + "/"]
     await writeStoreFile(store)
   }
 
