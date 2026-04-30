@@ -489,24 +489,25 @@ test("parseModel handles model IDs with slashes", () => {
 
 test("parseModel accepts bare ACP model IDs", () => {
   const result = Provider.parseModel("codex:gpt-5.5")
-  expect(String(result.providerID)).toBe("acp")
-  expect(String(result.modelID)).toBe("codex:gpt-5.5")
+  expect(String(result.providerID)).toBe("codex")
+  expect(String(result.modelID)).toBe("gpt-5.5")
 })
 
 test("ACP provider is surfaced and supports dynamic model refs", async () => {
   await using tmp = await tmpdir({
     config: {
-      model: "acp/codex:gpt-5.5",
+      model: "cursor/composer-2",
     },
   })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const providers = await list()
-      expect(providers[ProviderID.make("acp")]).toBeDefined()
-      const model = await getModel(ProviderID.make("acp"), ModelID.make("cursor:composer-2"))
-      expect(String(model.providerID)).toBe("acp")
-      expect(String(model.id)).toBe("cursor:composer-2")
+      expect(providers[ProviderID.make("cursor")]).toBeDefined()
+      expect(Object.keys(providers[ProviderID.make("cursor")].models)).toHaveLength(0)
+      const model = await getModel(ProviderID.make("cursor"), ModelID.make("composer-2"))
+      expect(String(model.providerID)).toBe("cursor")
+      expect(String(model.id)).toBe("composer-2")
     },
   })
 })

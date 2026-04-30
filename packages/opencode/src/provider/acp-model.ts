@@ -14,78 +14,90 @@ import { Shell } from "@/shell/shell"
 
 const DISCOVER_TIMEOUT = 10_000
 
-export const providerID = ProviderID.make("acp")
-
 export const adapters = ["codex", "claude-code", "cursor"] as const
 export type AdapterID = (typeof adapters)[number]
+
+const adapterProviderIDs: Record<AdapterID, ProviderID> = {
+  codex: ProviderID.make("codex"),
+  "claude-code": ProviderID.make("claude-code"),
+  cursor: ProviderID.make("cursor"),
+}
 
 const defaults = {
   codex: {
     command: "bunx @zed-industries/codex-acp",
-    modelRef: "gpt-5.5",
-    name: "Codex GPT-5.5",
+    providerName: "Codex",
   },
   "claude-code": {
     command: "bunx @zed-industries/claude-agent-acp",
-    modelRef: "sonnet-4.6",
-    name: "Claude Sonnet 4.6",
+    providerName: "Claude Code",
   },
   cursor: {
     command: "agent acp",
-    modelRef: "composer-2",
-    name: "Cursor Composer 2",
+    providerName: "Cursor",
   },
-} satisfies Record<AdapterID, { command: string; modelRef: string; name: string }>
+} satisfies Record<AdapterID, { command: string; providerName: string }>
 
 function isAdapter(value: string): value is AdapterID {
   return adapters.includes(value as AdapterID)
 }
 
-export function fromString(value: string) {
-  const idx = value.indexOf(":")
-  if (idx <= 0) return
-  const adapter = value.slice(0, idx)
-  if (!isAdapter(adapter)) return
-  const modelRef = value.slice(idx + 1)
-  if (!modelRef) return
-  return {
-    providerID,
-    modelID: ModelID.make(`${adapter}:${modelRef}`),
+export function adapterForProvider(pid: string): AdapterID | undefined {
+  for (const adapter of adapters) {
+    if (adapterProviderIDs[adapter] === pid) return adapter
   }
+  return undefined
 }
 
-export function extract(model: { providerID: string; modelID: string }) {
-  if (model.providerID !== providerID) return
-  const idx = model.modelID.indexOf(":")
-  if (idx <= 0) return
-  const adapter = model.modelID.slice(0, idx)
-  if (!isAdapter(adapter)) return
-  const modelRef = model.modelID.slice(idx + 1)
-  if (!modelRef) return
+export function providerIDFor(adapter: AdapterID): ProviderID {
+  return adapterProviderIDs[adapter]
+}
+
+export function isACPProvider(pid: string): boolean {
+  return adapterForProvider(pid) !== undefined
+}
+
+export function fromString(value: string) {
+  if (value.includes(":")) {
+    const idx = value.indexOf(":")
+    const adapter = value.slice(0, idx)
+    if (!isAdapter(adapter)) return
+    const modelRef = value.slice(idx + 1)
+    if (!modelRef) return
+    return {
+      providerID: adapterProviderIDs[adapter],
+      modelID: ModelID.make(modelRef),
+    }
+  }
+  return undefined
+}
+
+export function extract(m: { providerID: string; modelID: string }) {
+  const adapter = adapterForProvider(m.providerID)
+  if (!adapter) return
   return {
     adapter,
-    modelRef,
+    modelRef: String(m.modelID),
   }
 }
 
-export function isACPModel(model: { providerID: string; modelID: string }) {
-  return extract(model) !== undefined
+export function isACPModel(m: { providerID: string; modelID: string }) {
+  return extract(m) !== undefined
 }
 
-export function config(config: ACPConfigInfo | undefined, adapter: AdapterID) {
+export function config(cfg: ACPConfigInfo | undefined, adapter: AdapterID) {
   return {
-    command: config?.[adapter]?.command ?? defaults[adapter].command,
-    env: config?.[adapter]?.env ?? {},
+    command: cfg?.[adapter]?.command ?? defaults[adapter].command,
+    env: cfg?.[adapter]?.env ?? {},
   }
 }
 
 export function model(adapter: AdapterID, modelRef: string): ProviderModel {
-  const id = `${adapter}:${modelRef}`
   return {
-    id: ModelID.make(id),
-    providerID,
+    id: ModelID.make(modelRef),
+    providerID: adapterProviderIDs[adapter],
     api: {
-      id,
+      id: modelRef,
       url: "",
       npm: "",
     },
@@ -132,35 +144,36 @@ export function model(adapter: AdapterID, modelRef: string): ProviderModel {
   }
 }
 
-export function provider(): ProviderInfo {
+export function provider(adapter: AdapterID): ProviderInfo {
   return {
-    id: providerID,
+    id: adapterProviderIDs[adapter],
     source: "custom",
-    name: "ACP",
+    name: defaults[adapter].providerName,
     env: [],
     options: {},
-    models: Object.fromEntries(
-      adapters.map((adapter) => {
-        const info = defaults[adapter]
-        const item = model(adapter, info.modelRef)
-        return [item.id, { ...item, name: info.name }]
-      }),
-    ),
+    models: {},
   }
 }
 
-let liveModels: Record<string, ProviderModel> | undefined
+export function providers(): Record<ProviderID, ProviderInfo> {
+  return Object.fromEntries(adapters.map((adapter) => [adapterProviderIDs[adapter], provider(adapter)])) as Record<
+    ProviderID,
+    ProviderInfo
+  >
+}
 
-export function bindModels(models: Record<string, ProviderModel>) {
-  liveModels = models
+const liveModelsMap = new Map<AdapterID, Record<string, ProviderModel>>()
+
+export function bindModels(adapter: AdapterID, models: Record<string, ProviderModel>) {
+  liveModelsMap.set(adapter, models)
 }
 
 export function cacheModels(adapter: AdapterID, discovered: Array<{ id: string; name: string }>) {
-  if (!liveModels) return
+  const live = liveModelsMap.get(adapter)
+  if (!live) return
   for (const m of discovered) {
-    const key = `${adapter}:${m.id}`
-    if (!liveModels[key]) {
-      liveModels[key] = { ...model(adapter, m.id), name: m.name }
+    if (!live[m.id]) {
+      live[m.id] = { ...model(adapter, m.id), name: m.name }
     }
   }
 }

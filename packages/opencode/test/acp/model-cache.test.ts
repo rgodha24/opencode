@@ -16,7 +16,7 @@ async function listModels() {
     Effect.gen(function* () {
       const provider = yield* Provider.Service
       const providers = yield* provider.list()
-      return providers[ProviderID.make("acp")]?.models ?? {}
+      return providers[ProviderID.make("cursor")]?.models ?? {}
     }),
   )
 }
@@ -24,8 +24,8 @@ async function listModels() {
 // -- Unit tests for cacheModelsFromSessionResponse --
 
 test("cacheModelsFromSessionResponse extracts models from configOptions with category model", () => {
-  const info = ACPModel.provider()
-  ACPModel.bindModels(info.models)
+  const info = ACPModel.provider("cursor")
+  ACPModel.bindModels("cursor", info.models)
 
   ACPModel.cacheModelsFromSessionResponse(
     "cursor",
@@ -59,20 +59,20 @@ test("cacheModelsFromSessionResponse extracts models from configOptions with cat
     ] satisfies SessionConfigOption[],
   )
 
-  expect(info.models["cursor:claude-sonnet-4"]).toBeDefined()
-  expect(info.models["cursor:claude-sonnet-4"].name).toBe("Claude Sonnet 4")
-  expect(info.models["cursor:gpt-4.1"]).toBeDefined()
-  expect(info.models["cursor:gemini-2.5-pro"]).toBeDefined()
+  expect(info.models["claude-sonnet-4"]).toBeDefined()
+  expect(info.models["claude-sonnet-4"].name).toBe("Claude Sonnet 4")
+  expect(info.models["gpt-4.1"]).toBeDefined()
+  expect(info.models["gemini-2.5-pro"]).toBeDefined()
   // Non-model options must NOT be added
-  expect(info.models["cursor:low"]).toBeUndefined()
-  expect(info.models["cursor:medium"]).toBeUndefined()
+  expect(info.models["low"]).toBeUndefined()
+  expect(info.models["medium"]).toBeUndefined()
 
-  ACPModel.bindModels({})
+  ACPModel.bindModels("cursor", {})
 })
 
 test("cacheModelsFromSessionResponse handles grouped config options", () => {
-  const info = ACPModel.provider()
-  ACPModel.bindModels(info.models)
+  const info = ACPModel.provider("cursor")
+  ACPModel.bindModels("cursor", info.models)
 
   ACPModel.cacheModelsFromSessionResponse("cursor", null, [
     {
@@ -102,17 +102,17 @@ test("cacheModelsFromSessionResponse handles grouped config options", () => {
     },
   ] satisfies SessionConfigOption[])
 
-  expect(info.models["cursor:claude-sonnet-4"]).toBeDefined()
-  expect(info.models["cursor:claude-opus-4"]).toBeDefined()
-  expect(info.models["cursor:gpt-4.1"]).toBeDefined()
-  expect(info.models["cursor:o3"]).toBeDefined()
+  expect(info.models["claude-sonnet-4"]).toBeDefined()
+  expect(info.models["claude-opus-4"]).toBeDefined()
+  expect(info.models["gpt-4.1"]).toBeDefined()
+  expect(info.models["o3"]).toBeDefined()
 
-  ACPModel.bindModels({})
+  ACPModel.bindModels("cursor", {})
 })
 
 test("cacheModelsFromSessionResponse prefers models field over configOptions", () => {
-  const info = ACPModel.provider()
-  ACPModel.bindModels(info.models)
+  const info = ACPModel.provider("cursor")
+  ACPModel.bindModels("cursor", info.models)
 
   ACPModel.cacheModelsFromSessionResponse(
     "cursor",
@@ -132,24 +132,24 @@ test("cacheModelsFromSessionResponse prefers models field over configOptions", (
     ] satisfies SessionConfigOption[],
   )
 
-  expect(info.models["cursor:from-models-field"]).toBeDefined()
-  expect(info.models["cursor:from-config-options"]).toBeUndefined()
+  expect(info.models["from-models-field"]).toBeDefined()
+  expect(info.models["from-config-options"]).toBeUndefined()
 
-  ACPModel.bindModels({})
+  ACPModel.bindModels("cursor", {})
 })
 
 // -- Integration: cached models appear in Provider.list() --
 
 test("cached models appear in Provider.list() via live provider state", async () => {
   await using tmp = await tmpdir({
-    config: { model: "acp/codex:gpt-5.5" },
+    config: { model: "codex/gpt-5.5" },
   })
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
       const before = await listModels()
-      expect(before["cursor:composer-2"]).toBeDefined()
-      expect(before["cursor:some-new-model"]).toBeUndefined()
+      expect(before["composer-2"]).toBeUndefined()
+      expect(before["some-new-model"]).toBeUndefined()
 
       ACPModel.cacheModels("cursor", [
         { id: "some-new-model", name: "Some New Model" },
@@ -157,9 +157,9 @@ test("cached models appear in Provider.list() via live provider state", async ()
       ])
 
       const after = await listModels()
-      expect(after["cursor:some-new-model"]).toBeDefined()
-      expect(after["cursor:some-new-model"].name).toBe("Some New Model")
-      expect(after["cursor:another-model"]).toBeDefined()
+      expect(after["some-new-model"]).toBeDefined()
+      expect(after["some-new-model"].name).toBe("Some New Model")
+      expect(after["another-model"]).toBeDefined()
     },
   })
 })
@@ -169,7 +169,7 @@ test("cached models appear in Provider.list() via live provider state", async ()
 test("runtime caches models from mock cursor ACP adapter configOptions", async () => {
   await using tmp = await tmpdir({
     config: {
-      model: "acp/cursor:claude-sonnet-4",
+      model: "cursor/claude-sonnet-4",
       acp: {
         cursor: { command: MOCK_ADAPTER },
       },
@@ -178,11 +178,11 @@ test("runtime caches models from mock cursor ACP adapter configOptions", async (
   await Instance.provide({
     directory: tmp.path,
     fn: async () => {
-      // Before any session, only defaults
+      // Before any session, ACP providers start with empty models
       const before = await listModels()
-      expect(before["cursor:composer-2"]).toBeDefined()
-      expect(before["cursor:claude-sonnet-4"]).toBeUndefined()
-      expect(before["cursor:gpt-4.1"]).toBeUndefined()
+      expect(before["composer-2"]).toBeUndefined()
+      expect(before["claude-sonnet-4"]).toBeUndefined()
+      expect(before["gpt-4.1"]).toBeUndefined()
 
       // Run a prompt through the mock cursor adapter
       const { SessionPrompt } = await import("@/session/prompt")
@@ -197,8 +197,8 @@ test("runtime caches models from mock cursor ACP adapter configOptions", async (
           yield* prompt.prompt({
             sessionID: session.id,
             model: {
-              providerID: ProviderID.make("acp"),
-              modelID: ModelID.make("cursor:claude-sonnet-4"),
+            providerID: ProviderID.make("cursor"),
+            modelID: ModelID.make("claude-sonnet-4"),
             },
             parts: [{ type: "text", text: "hello" }],
           })
@@ -207,12 +207,12 @@ test("runtime caches models from mock cursor ACP adapter configOptions", async (
 
       // After the prompt, models from configOptions should be cached
       const after = await listModels()
-      expect(after["cursor:claude-sonnet-4"]).toBeDefined()
-      expect(after["cursor:claude-sonnet-4"].name).toBe("Claude Sonnet 4")
-      expect(after["cursor:gpt-4.1"]).toBeDefined()
-      expect(after["cursor:gpt-4.1"].name).toBe("GPT-4.1")
-      expect(after["cursor:gemini-2.5-pro"]).toBeDefined()
-      expect(after["cursor:gemini-2.5-pro"].name).toBe("Gemini 2.5 Pro")
+      expect(after["claude-sonnet-4"]).toBeDefined()
+      expect(after["claude-sonnet-4"].name).toBe("Claude Sonnet 4")
+      expect(after["gpt-4.1"]).toBeDefined()
+      expect(after["gpt-4.1"].name).toBe("GPT-4.1")
+      expect(after["gemini-2.5-pro"]).toBeDefined()
+      expect(after["gemini-2.5-pro"].name).toBe("Gemini 2.5 Pro")
     },
   })
 }, 30_000)

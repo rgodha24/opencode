@@ -920,7 +920,7 @@ export const ConfigProvidersResult = Schema.Struct({
 export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
 
 export function defaultModelIDs<T extends { models: Record<string, { id: string }> }>(providers: Record<string, T>) {
-  return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
+  return mapValues(providers, (item) => sort(Object.values(item.models))[0]?.id)
 }
 
 export interface Interface {
@@ -1292,12 +1292,13 @@ const layer: Layer.Layer<
           mergeProvider(providerID, partial)
         }
 
-        if (isProviderAllowed(ACPModel.providerID)) {
-          providers[ACPModel.providerID] = ACPModel.provider()
-          ACPModel.bindModels(providers[ACPModel.providerID].models)
-          void Promise.all(
-            ACPModel.adapters.map((adapter) => ACPModel.discoverModels(cfg.acp, adapter, process.cwd())),
-          ).catch(() => {})
+        for (const adapter of ACPModel.adapters) {
+          const pid = ACPModel.providerIDFor(adapter)
+          if (isProviderAllowed(pid)) {
+            providers[pid] = ACPModel.provider(adapter)
+            ACPModel.bindModels(adapter, providers[pid].models)
+            void ACPModel.discoverModels(cfg.acp, adapter, process.cwd()).catch(() => {})
+          }
         }
 
         const gitlab = ProviderID.make("gitlab")
@@ -1381,7 +1382,7 @@ const layer: Layer.Layer<
             }
           }
 
-          if (Object.keys(provider.models).length === 0) {
+          if (Object.keys(provider.models).length === 0 && !ACPModel.isACPProvider(providerID)) {
             delete providers[providerID]
             continue
           }
@@ -1555,7 +1556,7 @@ const layer: Layer.Layer<
       }
 
       const info = provider.models[modelID]
-      if (!info && providerID === ACPModel.providerID) {
+      if (!info && ACPModel.isACPProvider(providerID)) {
         const parsed = ACPModel.extract({ providerID, modelID })
         if (parsed) return ACPModel.model(parsed.adapter, parsed.modelRef)
       }
@@ -1568,7 +1569,7 @@ const layer: Layer.Layer<
     })
 
     const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
-      if (model.providerID === ACPModel.providerID) {
+      if (ACPModel.isACPProvider(model.providerID)) {
         throw new InitError(
           { providerID: model.providerID },
           { cause: new Error("ACP models do not expose AI SDK languages") },
@@ -1700,7 +1701,7 @@ const layer: Layer.Layer<
 
       const provider =
         Object.values(s.providers).find(
-          (p) => p.id !== ACPModel.providerID && (!cfg.provider || Object.keys(cfg.provider).includes(p.id)),
+          (p) => !ACPModel.isACPProvider(p.id) && (!cfg.provider || Object.keys(cfg.provider).includes(p.id)),
         ) ?? Object.values(s.providers).find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id))
       if (!provider) throw new Error("no providers found")
       const [model] = sort(Object.values(provider.models))

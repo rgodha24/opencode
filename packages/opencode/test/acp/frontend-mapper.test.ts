@@ -25,7 +25,7 @@ describe("acp frontend mapper", () => {
           sessionID: session.id,
           time: { created: Date.now() },
           agent: "build",
-          model: { providerID: ProviderID.make("acp"), modelID: ModelID.make("codex:gpt-5.5") },
+          model: { providerID: ProviderID.make("codex"), modelID: ModelID.make("gpt-5.5") },
         })
         const assistant: MessageV2.Assistant = {
           id: MessageID.ascending(),
@@ -34,8 +34,8 @@ describe("acp frontend mapper", () => {
           sessionID: session.id,
           mode: "build",
           agent: "build",
-          modelID: ModelID.make("codex:gpt-5.5"),
-          providerID: ProviderID.make("acp"),
+          modelID: ModelID.make("gpt-5.5"),
+          providerID: ProviderID.make("codex"),
           path: { cwd: session.directory, root: session.directory },
           cost: 0,
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },

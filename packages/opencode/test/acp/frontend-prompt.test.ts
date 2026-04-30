@@ -55,8 +55,8 @@ describe("acp frontend prompt flow", () => {
             const message = yield* prompt.prompt({
               sessionID: session.id,
               model: {
-                providerID: ProviderID.make("acp"),
-                modelID: ModelID.make("codex:gpt-5.5"),
+                providerID: ProviderID.make("codex"),
+                modelID: ModelID.make("gpt-5.5"),
               },
               parts: [{ type: "text", text: "say hi" }],
             })
