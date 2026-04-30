@@ -81,6 +81,7 @@ export function fromRow(row: SessionRow): Info {
     version: row.version,
     summary,
     share,
+    acpSessionID: row.acp_session_id ?? undefined,
     revert,
     permission: row.permission ?? undefined,
     time: {
@@ -104,6 +105,7 @@ export function toRow(info: Info) {
     title: info.title,
     version: info.version,
     share_url: info.share?.url,
+    acp_session_id: info.acpSessionID,
     summary_additions: info.summary?.additions,
     summary_deletions: info.summary?.deletions,
     summary_files: info.summary?.files,
@@ -168,6 +170,7 @@ export const Info = Schema.Struct({
   share: optionalOmitUndefined(Share),
   title: Schema.String,
   version: Schema.String,
+  acpSessionID: optionalOmitUndefined(Schema.String),
   time: Time,
   permission: optionalOmitUndefined(Permission.Ruleset),
   revert: optionalOmitUndefined(Revert),
@@ -259,6 +262,7 @@ const UpdatedInfo = Schema.Struct({
   share: Schema.optional(UpdatedShare),
   title: Schema.optional(Schema.NullOr(Schema.String)),
   version: Schema.optional(Schema.NullOr(Schema.String)),
+  acpSessionID: Schema.optional(Schema.NullOr(Schema.String)),
   time: Schema.optional(UpdatedTime),
   permission: Schema.optional(Schema.NullOr(Permission.Ruleset)),
   revert: Schema.optional(Schema.NullOr(Revert)),
@@ -397,6 +401,7 @@ export interface Interface {
   readonly get: (id: SessionID) => Effect.Effect<Info>
   readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
   readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
+  readonly setAcpSessionID: (input: { sessionID: SessionID; acpSessionID?: string }) => Effect.Effect<void>
   readonly setPermission: (input: { sessionID: SessionID; permission: Permission.Ruleset }) => Effect.Effect<void>
   readonly setRevert: (input: {
     sessionID: SessionID
@@ -646,6 +651,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       yield* patch(input.sessionID, { time: { archived: input.time } })
     })
 
+    const setAcpSessionID = Effect.fn("Session.setAcpSessionID")(function* (input: {
+      sessionID: SessionID
+      acpSessionID?: string
+    }) {
+      yield* patch(input.sessionID, { acpSessionID: input.acpSessionID ?? null, time: { updated: Date.now() } })
+    })
+
     const setPermission = Effect.fn("Session.setPermission")(function* (input: {
       sessionID: SessionID
       permission: Permission.Ruleset
@@ -741,6 +753,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       get,
       setTitle,
       setArchived,
+      setAcpSessionID,
       setPermission,
       setRevert,
       clearRevert,

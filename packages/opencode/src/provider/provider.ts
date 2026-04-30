@@ -27,6 +27,7 @@ import { isRecord } from "@/util/record"
 import { withStatics } from "@/util/schema"
 
 import * as ProviderTransform from "./transform"
+import { ACPModel } from "./acp-model"
 import { ModelID, ProviderID } from "./schema"
 
 const log = Log.create({ service: "provider" })
@@ -1291,6 +1292,10 @@ const layer: Layer.Layer<
           mergeProvider(providerID, partial)
         }
 
+        if (isProviderAllowed(ACPModel.providerID)) {
+          providers[ACPModel.providerID] = ACPModel.provider()
+        }
+
         const gitlab = ProviderID.make("gitlab")
         if (discoveryLoaders[gitlab] && providers[gitlab] && isProviderAllowed(gitlab)) {
           yield* Effect.promise(async () => {
@@ -1546,6 +1551,10 @@ const layer: Layer.Layer<
       }
 
       const info = provider.models[modelID]
+      if (!info && providerID === ACPModel.providerID) {
+        const parsed = ACPModel.extract({ providerID, modelID })
+        if (parsed) return ACPModel.model(parsed.adapter, parsed.modelRef)
+      }
       if (!info) {
         const available = Object.keys(provider.models)
         const matches = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 })
@@ -1555,6 +1564,12 @@ const layer: Layer.Layer<
     })
 
     const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
+      if (model.providerID === ACPModel.providerID) {
+        throw new InitError(
+          { providerID: model.providerID },
+          { cause: new Error("ACP models do not expose AI SDK languages") },
+        )
+      }
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
       const key = `${model.providerID}/${model.id}`
@@ -1679,7 +1694,10 @@ const layer: Layer.Layer<
         return { providerID: entry.providerID, modelID: entry.modelID }
       }
 
-      const provider = Object.values(s.providers).find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id))
+      const provider =
+        Object.values(s.providers).find(
+          (p) => p.id !== ACPModel.providerID && (!cfg.provider || Object.keys(cfg.provider).includes(p.id)),
+        ) ?? Object.values(s.providers).find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id))
       if (!provider) throw new Error("no providers found")
       const [model] = sort(Object.values(provider.models))
       if (!model) throw new Error("no models found")
@@ -1714,6 +1732,8 @@ export function sort<T extends { id: string }>(models: T[]) {
 }
 
 export function parseModel(model: string) {
+  const acp = ACPModel.fromString(model)
+  if (acp) return acp
   const [providerID, ...rest] = model.split("/")
   return {
     providerID: ProviderID.make(providerID),

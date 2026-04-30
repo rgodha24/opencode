@@ -28,6 +28,7 @@ export const SessionTable = sqliteTable(
     title: text().notNull(),
     version: text().notNull(),
     share_url: text(),
+    acp_session_id: text(),
     summary_additions: integer(),
     summary_deletions: integer(),
     summary_files: integer(),

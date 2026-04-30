@@ -9,6 +9,7 @@ import { SessionRevert } from "./revert"
 import * as Session from "./session"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
+import { ACPModel } from "@/provider/acp-model"
 import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
@@ -39,6 +40,7 @@ import { SessionProcessor } from "./processor"
 import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
 import { SessionStatus } from "./status"
+import { Todo } from "./todo"
 import { LLM } from "./llm"
 import { Shell } from "@/shell/shell"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -53,6 +55,8 @@ import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { EffectBridge } from "@/effect/bridge"
+import { ACPFrontendRuntime } from "@/acp/frontend/runtime"
+import { ACPFrontendMapper } from "@/acp/frontend/mapper"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -89,6 +93,7 @@ export const layer = Layer.effect(
     const sessions = yield* Session.Service
     const agents = yield* Agent.Service
     const provider = yield* Provider.Service
+    const acp = yield* ACPFrontendRuntime.Service
     const processor = yield* SessionProcessor.Service
     const compaction = yield* SessionCompaction.Service
     const plugin = yield* Plugin.Service
@@ -107,6 +112,7 @@ export const layer = Layer.effect(
     const revert = yield* SessionRevert.Service
     const summary = yield* SessionSummary.Service
     const sys = yield* SystemPrompt.Service
+    const todo = yield* Todo.Service
     const llm = yield* LLM.Service
     const runner = Effect.fn("SessionPrompt.runner")(function* () {
       return yield* EffectBridge.make()
@@ -122,6 +128,7 @@ export const layer = Layer.effect(
 
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
       yield* elog.info("cancel", { sessionID })
+      yield* acp.cancel(sessionID).pipe(Effect.ignore)
       yield* state.cancel(sessionID)
     })
 
@@ -1322,13 +1329,109 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           }
 
           step++
-          if (step === 1)
+          if (step === 1 && !ACPModel.isACPModel(lastUser.model))
             yield* title({
               session,
               modelID: lastUser.model.modelID,
               providerID: lastUser.model.providerID,
               history: msgs,
             }).pipe(Effect.ignore, Effect.forkIn(scope))
+
+          const acpModel = ACPModel.extract(lastUser.model)
+          if (acpModel) {
+            const agent = yield* agents.get(lastUser.agent)
+            if (!agent) {
+              const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
+              const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
+              const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
+              yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
+              throw error
+            }
+
+            const userMessage = msgs.findLast((msg) => msg.info.id === lastUser.id)
+            const msg: MessageV2.Assistant = {
+              id: MessageID.ascending(),
+              parentID: lastUser.id,
+              role: "assistant",
+              mode: agent.name,
+              agent: agent.name,
+              variant: lastUser.model.variant,
+              path: { cwd: ctx.directory, root: ctx.worktree },
+              cost: 0,
+              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              modelID: lastUser.model.modelID,
+              providerID: lastUser.model.providerID,
+              time: { created: Date.now() },
+              sessionID,
+            }
+            yield* sessions.updateMessage(msg)
+
+            if (step === 1)
+              yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
+
+            const mapper = ACPFrontendMapper.create()
+            const bridge = yield* runner()
+            const abort = new AbortController()
+
+            try {
+              const result = yield* acp
+                .prompt({
+                  sessionID,
+                  cwd: session.directory,
+                  model: lastUser.model,
+                  persistedSessionID: session.acpSessionID,
+                  prompt: ACPFrontendRuntime.toPrompt(userMessage?.parts ?? []),
+                  abort: abort.signal,
+                  onUpdate: (update) =>
+                    bridge.promise(
+                      ACPFrontendMapper.apply({
+                        state: mapper,
+                        message: msg,
+                        update,
+                        sessions,
+                        todo,
+                      }),
+                    ),
+                })
+                .pipe(Effect.onInterrupt(() => Effect.sync(() => abort.abort())))
+
+              if (session.acpSessionID !== result.acpSessionID) {
+                session.acpSessionID = result.acpSessionID
+                yield* sessions.setAcpSessionID({ sessionID, acpSessionID: result.acpSessionID })
+              }
+
+              const usage = result.response.usage
+              const inputTokens = usage?.inputTokens ?? 0
+              const outputTokens = usage?.outputTokens ?? 0
+              const reasoningTokens = usage?.thoughtTokens ?? 0
+              const cachedReadTokens = usage?.cachedReadTokens ?? 0
+              const cachedWriteTokens = usage?.cachedWriteTokens ?? 0
+              msg.tokens = {
+                total:
+                  usage?.totalTokens ??
+                  inputTokens + outputTokens + reasoningTokens + cachedReadTokens + cachedWriteTokens,
+                input: inputTokens,
+                output: outputTokens,
+                reasoning: reasoningTokens,
+                cache: {
+                  read: cachedReadTokens,
+                  write: cachedWriteTokens,
+                },
+              }
+              msg.finish = fromACPStopReason(result.response.stopReason)
+            } catch (error) {
+              msg.error = MessageV2.fromError(error, {
+                providerID: lastUser.model.providerID,
+                aborted: abort.signal.aborted,
+              })
+              yield* bus.publish(Session.Event.Error, { sessionID, error: msg.error })
+            }
+
+            yield* ACPFrontendMapper.finish({ state: mapper, sessions })
+            msg.time.completed = Date.now()
+            yield* sessions.updateMessage(msg)
+            break
+          }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           const task = tasks.pop()
@@ -1669,6 +1772,8 @@ export const defaultLayer = Layer.suspend(() =>
         LLM.defaultLayer,
         Bus.layer,
         CrossSpawnSpawner.defaultLayer,
+        Todo.defaultLayer,
+        ACPFrontendRuntime.defaultLayer,
       ),
     ),
   ),
@@ -1789,5 +1894,13 @@ const bashRegex = /!`([^`]+)`/g
 const argsRegex = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
 const placeholderRegex = /\$(\d+)/g
 const quoteTrimRegex = /^["']|["']$/g
+
+function fromACPStopReason(stopReason?: string) {
+  if (!stopReason) return "stop"
+  if (stopReason === "end_turn") return "stop"
+  if (stopReason === "max_tokens") return "length"
+  if (stopReason === "cancelled") return "abort"
+  return stopReason
+}
 
 export * as SessionPrompt from "./prompt"

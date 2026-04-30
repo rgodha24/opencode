@@ -27,6 +27,7 @@ import { InstanceRef } from "@/effect/instance-ref"
 import { zod } from "@/util/effect-zod"
 import { NonNegativeInt, PositiveInt, withStatics, type DeepMutable } from "@/util/schema"
 import { ConfigAgent } from "./agent"
+import { ConfigACP } from "./acp"
 import { ConfigCommand } from "./command"
 import { ConfigFormatter } from "./formatter"
 import { ConfigLayout } from "./layout"
@@ -107,6 +108,9 @@ export const Info = Schema.Struct({
   }),
   command: Schema.optional(Schema.Record(Schema.String, ConfigCommand.Info)).annotate({
     description: "Command configuration, see https://opencode.ai/docs/commands",
+  }),
+  acp: Schema.optional(ConfigACP.Info).annotate({
+    description: "ACP adapter spawn configuration",
   }),
   skills: Schema.optional(ConfigSkills.Info).annotate({ description: "Additional skill folder paths" }),
   watcher: Schema.optional(

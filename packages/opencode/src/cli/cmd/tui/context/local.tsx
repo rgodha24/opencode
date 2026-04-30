@@ -12,8 +12,16 @@ import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import { Filesystem } from "@/util/filesystem"
+import { ACPModel } from "@/provider/acp-model"
 
 export function parseModel(model: string) {
+  const acp = ACPModel.fromString(model)
+  if (acp) {
+    return {
+      providerID: String(acp.providerID),
+      modelID: String(acp.modelID),
+    }
+  }
   const [providerID, ...rest] = model.split("/")
   return {
     providerID: providerID,
