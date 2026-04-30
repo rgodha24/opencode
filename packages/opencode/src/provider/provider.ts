@@ -1294,6 +1294,10 @@ const layer: Layer.Layer<
 
         if (isProviderAllowed(ACPModel.providerID)) {
           providers[ACPModel.providerID] = ACPModel.provider()
+          ACPModel.bindModels(providers[ACPModel.providerID].models)
+          void Promise.all(
+            ACPModel.adapters.map((adapter) => ACPModel.discoverModels(cfg.acp, adapter, process.cwd())),
+          ).catch(() => {})
         }
 
         const gitlab = ProviderID.make("gitlab")

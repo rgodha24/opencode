@@ -312,7 +312,7 @@ export const layer = Layer.effect(
 
             if (input.persistedSessionID) {
               try {
-                await withTimeout(
+                const loaded = await withTimeout(
                   Promise.race([
                     closed,
                     abortPromise(input.abort),
@@ -324,6 +324,7 @@ export const layer = Layer.effect(
                   ]),
                   STARTUP_TIMEOUT,
                 )
+                cacheAvailableModels(parsed.adapter, loaded.models, loaded.configOptions)
                 return input.persistedSessionID
               } catch (error) {
                 log.warn("failed to load persisted ACP session, creating a new one", {
@@ -345,6 +346,7 @@ export const layer = Layer.effect(
               ]),
               STARTUP_TIMEOUT,
             )
+            cacheAvailableModels(parsed.adapter, created.models, created.configOptions)
             return created.sessionId
           } catch (error) {
             await close({
@@ -514,6 +516,14 @@ async function readText(item: State | undefined, params: ReadTextFileRequest): P
 async function writeText(item: State | undefined, params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
   await Filesystem.write(resolvePath(item, params.path), params.content)
   return {}
+}
+
+function cacheAvailableModels(
+  adapter: ACPModel.AdapterID,
+  models: Parameters<typeof ACPModel.cacheModelsFromSessionResponse>[1],
+  configOptions: Parameters<typeof ACPModel.cacheModelsFromSessionResponse>[2],
+) {
+  ACPModel.cacheModelsFromSessionResponse(adapter, models, configOptions)
 }
 
 async function close(item: State) {

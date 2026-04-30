@@ -537,6 +537,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         },
       },
       bootstrap,
+      provider: {
+        async refresh() {
+          const workspace = project.workspace.current()
+          const response = await sdk.client.config.providers({ workspace }, { throwOnError: true })
+          setStore("provider", reconcile(response.data!.providers))
+        },
+      },
     }
     return result
   },
