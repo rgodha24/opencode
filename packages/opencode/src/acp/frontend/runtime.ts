@@ -7,8 +7,8 @@ import {
   type ContentBlock,
   type CreateTerminalRequest,
   type CreateTerminalResponse,
-  type KillTerminalCommandRequest,
-  type KillTerminalCommandResponse,
+  type KillTerminalRequest,
+  type KillTerminalResponse,
   type PromptResponse,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
@@ -165,8 +165,8 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const config = yield* Config.Service
 
-    const state = yield* InstanceState.make<Store>(
-      Effect.fn("ACPFrontendRuntime.state")(function* (ctx) {
+    const state = yield* InstanceState.make<Store>((ctx) =>
+      Effect.gen(function* () {
         const items = new Map<SessionID, State>()
         const onEvent = (event: GlobalEvent) => {
           if (event.directory !== ctx.directory) return
@@ -180,7 +180,7 @@ export const layer = Layer.effect(
         }
 
         GlobalBus.on("event", onEvent)
-        yield* Effect.addFinalizer(
+        yield* Effect.addFinalizer(() =>
           Effect.promise(async () => {
             GlobalBus.off("event", onEvent)
             await Promise.all(Array.from(items.values(), (item) => close(item)))
@@ -200,19 +200,21 @@ export const layer = Layer.effect(
       const existing = items.get(input.sessionID)
       if (existing && existing.proc.exitCode === null) {
         if (existing.modelRef !== parsed.modelRef) {
-          yield* Effect.tryPromise(() =>
-            Promise.race([
-              existing.closed,
-              abortPromise(input.abort),
-              withTimeout(
-                existing.conn.unstable_setSessionModel({
-                  sessionId: existing.acpSessionID,
-                  modelId: parsed.modelRef,
-                }),
-                STARTUP_TIMEOUT,
-              ),
-            ]),
-          )
+          yield* Effect.tryPromise({
+            try: () =>
+              Promise.race([
+                existing.closed,
+                abortPromise(input.abort),
+                withTimeout(
+                  existing.conn.unstable_setSessionModel({
+                    sessionId: existing.acpSessionID,
+                    modelId: parsed.modelRef,
+                  }),
+                  STARTUP_TIMEOUT,
+                ),
+              ]),
+            catch: (cause) => cause,
+          })
           existing.modelRef = parsed.modelRef
         }
         return existing
@@ -378,26 +380,32 @@ export const layer = Layer.effect(
       }
       items.set(input.sessionID, current)
 
-      yield* Effect.tryPromise(() =>
-        Promise.race([
-          current.closed,
-          abortPromise(input.abort),
-          withTimeout(
-            current.conn.unstable_setSessionModel({
-              sessionId: current.acpSessionID,
-              modelId: parsed.modelRef,
-            }),
-            STARTUP_TIMEOUT,
-          ),
-        ]),
-      ).pipe(Effect.catchAll(() => Effect.void))
+      yield* Effect.tryPromise({
+        try: () =>
+          Promise.race([
+            current.closed,
+            abortPromise(input.abort),
+            withTimeout(
+              current.conn.unstable_setSessionModel({
+                sessionId: current.acpSessionID,
+                modelId: parsed.modelRef,
+              }),
+              STARTUP_TIMEOUT,
+            ),
+          ]),
+        catch: (cause) => cause,
+      }).pipe(Effect.catch(() => Effect.void))
 
       return current
     })
 
-    const prompt = Effect.fn("ACPFrontendRuntime.prompt")(function* (input: PromptInput) {
-      if (promptForTest) {
-        return yield* Effect.tryPromise(() => promptForTest(input))
+    const prompt: Interface["prompt"] = Effect.fn("ACPFrontendRuntime.prompt")(function* (input: PromptInput) {
+      const testPrompt = promptForTest
+      if (testPrompt) {
+        return yield* Effect.tryPromise({
+          try: () => testPrompt(input),
+          catch: (cause) => cause,
+        })
       }
 
       const item = yield* ensure(input)
@@ -420,19 +428,21 @@ export const layer = Layer.effect(
 
       input.abort.addEventListener("abort", cancel, { once: true })
       try {
-        const response = yield* Effect.tryPromise(() =>
-          Promise.race([
-            item.closed,
-            abortPromise(input.abort),
-            withTimeout(
-              item.conn.prompt({
-                sessionId: item.acpSessionID,
-                prompt: input.prompt,
-              }),
-              PROMPT_TIMEOUT,
-            ),
-          ]),
-        )
+        const response = yield* Effect.tryPromise({
+          try: () =>
+            Promise.race([
+              item.closed,
+              abortPromise(input.abort),
+              withTimeout(
+                item.conn.prompt({
+                  sessionId: item.acpSessionID,
+                  prompt: input.prompt,
+                }),
+                PROMPT_TIMEOUT,
+              ),
+            ]),
+          catch: (cause) => cause,
+        })
         return {
           response,
           acpSessionID: item.acpSessionID,
@@ -443,20 +453,22 @@ export const layer = Layer.effect(
       }
     })
 
-    const cancel = Effect.fn("ACPFrontendRuntime.cancel")(function* (sessionID: SessionID) {
+    const cancel: Interface["cancel"] = Effect.fn("ACPFrontendRuntime.cancel")(function* (sessionID: SessionID) {
       const item = (yield* InstanceState.get(state)).items.get(sessionID)
       if (!item) return
-      yield* Effect.tryPromise(() =>
-        Promise.race([
-          item.closed,
-          withTimeout(
-            item.conn.cancel({
-              sessionId: item.acpSessionID,
-            }),
-            CANCEL_TIMEOUT,
-          ),
-        ]),
-      ).pipe(Effect.catchAll(() => Effect.void))
+      yield* Effect.tryPromise({
+        try: () =>
+          Promise.race([
+            item.closed,
+            withTimeout(
+              item.conn.cancel({
+                sessionId: item.acpSessionID,
+              }),
+              CANCEL_TIMEOUT,
+            ),
+          ]),
+        catch: (cause) => cause,
+      }).pipe(Effect.catch(() => Effect.void))
     })
 
     return Service.of({ prompt, cancel })
@@ -653,7 +665,7 @@ class TermManager {
     return this.get(params.terminalId).done
   }
 
-  async kill(params: KillTerminalCommandRequest): Promise<KillTerminalCommandResponse> {
+  async kill(params: KillTerminalRequest): Promise<KillTerminalResponse> {
     const term = this.get(params.terminalId)
     await Shell.killTree(term.proc, { exited: () => term.proc.exitCode !== null })
     return {}

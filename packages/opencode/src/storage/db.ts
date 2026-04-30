@@ -81,6 +81,29 @@ function migrations(dir: string): Journal {
   return sql.sort((a, b) => a.timestamp - b.timestamp)
 }
 
+function hasColumn(db: Client, table: string, column: string) {
+  const client = (db as unknown as { $client: Record<string, unknown> }).$client
+  const statement =
+    "query" in client && typeof client.query === "function"
+      ? client.query(`PRAGMA table_info(\`${table}\`)`)
+      : "prepare" in client && typeof client.prepare === "function"
+        ? client.prepare(`PRAGMA table_info(\`${table}\`)`)
+        : undefined
+  if (!statement || typeof statement !== "object" || !("all" in statement) || typeof statement.all !== "function") {
+    return false
+  }
+  const rows = statement.all()
+  if (!Array.isArray(rows)) return false
+  return rows.some((row) => typeof row === "object" && row !== null && "name" in row && row.name === column)
+}
+
+function patchMigrations(db: Client, entries: Journal) {
+  if (!hasColumn(db, "session", "acp_session_id")) return entries
+  return entries.map((entry) =>
+    entry.sql.includes("ADD `acp_session_id` text") ? { ...entry, sql: "select 1;" } : entry,
+  )
+}
+
 export const Client = lazy(() => {
   log.info("opening database", { path: Path })
 
@@ -94,10 +117,11 @@ export const Client = lazy(() => {
   db.run("PRAGMA wal_checkpoint(PASSIVE)")
 
   // Apply schema migrations
-  const entries =
+  let entries =
     typeof OPENCODE_MIGRATIONS !== "undefined"
       ? OPENCODE_MIGRATIONS
       : migrations(path.join(import.meta.dirname, "../../migration"))
+  entries = patchMigrations(db, entries)
   if (entries.length > 0) {
     log.info("applying migrations", {
       count: entries.length,

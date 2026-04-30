@@ -1373,34 +1373,37 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const bridge = yield* runner()
             const abort = new AbortController()
 
-            try {
-              const result = yield* acp
-                .prompt({
-                  sessionID,
-                  cwd: session.directory,
-                  model: lastUser.model,
-                  persistedSessionID: session.acpSessionID,
-                  prompt: ACPFrontendRuntime.toPrompt(userMessage?.parts ?? []),
-                  abort: abort.signal,
-                  onUpdate: (update) =>
-                    bridge.promise(
-                      ACPFrontendMapper.apply({
-                        state: mapper,
-                        message: msg,
-                        update,
-                        sessions,
-                        todo,
-                      }),
-                    ),
-                })
-                .pipe(Effect.onInterrupt(() => Effect.sync(() => abort.abort())))
+            const result = yield* acp
+              .prompt({
+                sessionID,
+                cwd: session.directory,
+                model: lastUser.model,
+                persistedSessionID: session.acpSessionID,
+                prompt: ACPFrontendRuntime.toPrompt(userMessage?.parts ?? []),
+                abort: abort.signal,
+                onUpdate: (update) =>
+                  bridge.promise(
+                    ACPFrontendMapper.apply({
+                      state: mapper,
+                      message: msg,
+                      update,
+                      sessions,
+                      todo,
+                    }),
+                  ),
+              })
+              .pipe(
+                Effect.onInterrupt(() => Effect.sync(() => abort.abort())),
+                Effect.exit,
+              )
 
-              if (session.acpSessionID !== result.acpSessionID) {
-                session.acpSessionID = result.acpSessionID
-                yield* sessions.setAcpSessionID({ sessionID, acpSessionID: result.acpSessionID })
+            if (Exit.isSuccess(result)) {
+              if (session.acpSessionID !== result.value.acpSessionID) {
+                session.acpSessionID = result.value.acpSessionID
+                yield* sessions.setAcpSessionID({ sessionID, acpSessionID: result.value.acpSessionID })
               }
 
-              const usage = result.response.usage
+              const usage = result.value.response.usage
               const inputTokens = usage?.inputTokens ?? 0
               const outputTokens = usage?.outputTokens ?? 0
               const reasoningTokens = usage?.thoughtTokens ?? 0
@@ -1418,8 +1421,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   write: cachedWriteTokens,
                 },
               }
-              msg.finish = fromACPStopReason(result.response.stopReason)
-            } catch (error) {
+              msg.finish = fromACPStopReason(result.value.response.stopReason)
+            } else {
+              const error = Cause.squash(result.cause)
               msg.error = MessageV2.fromError(error, {
                 providerID: lastUser.model.providerID,
                 aborted: abort.signal.aborted,

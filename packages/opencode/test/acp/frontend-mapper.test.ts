@@ -6,10 +6,11 @@ import { Session } from "@/session/session"
 import { MessageV2 } from "@/session/message-v2"
 import { Todo } from "@/session/todo"
 import { ACPFrontendMapper } from "@/acp/frontend/mapper"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
-const it = testEffect(Layer.mergeAll(Session.defaultLayer, Todo.defaultLayer))
+const it = testEffect(Layer.mergeAll(Session.defaultLayer, Todo.defaultLayer, CrossSpawnSpawner.defaultLayer))
 
 describe("acp frontend mapper", () => {
   it.live("maps ACP updates into native parts and todos", () =>
@@ -115,7 +116,7 @@ describe("acp frontend mapper", () => {
         )
         yield* ACPFrontendMapper.finish({ state, sessions })
 
-        const stored = yield* MessageV2.get({ sessionID: session.id, messageID: assistant.id })
+        const stored = MessageV2.get({ sessionID: session.id, messageID: assistant.id })
         const text = stored.parts.find((part): part is MessageV2.TextPart => part.type === "text")
         const reasoning = stored.parts.find((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
         const tool = stored.parts.find((part): part is MessageV2.ToolPart => part.type === "tool")

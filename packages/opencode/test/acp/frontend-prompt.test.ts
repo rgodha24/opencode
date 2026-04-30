@@ -1,14 +1,17 @@
 import { describe, expect } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { ProviderID, ModelID } from "@/provider/schema"
 import { SessionPrompt } from "@/session/prompt"
 import { Session } from "@/session/session"
 import { Todo } from "@/session/todo"
 import { ACPFrontendRuntime } from "@/acp/frontend/runtime"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
-const it = testEffect(SessionPrompt.defaultLayer)
+const it = testEffect(
+  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer, Todo.defaultLayer, CrossSpawnSpawner.defaultLayer),
+)
 
 describe("acp frontend prompt flow", () => {
   it.live("routes ACP model turns through the ACP frontend runtime", () =>
