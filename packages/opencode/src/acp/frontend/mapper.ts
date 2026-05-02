@@ -50,6 +50,8 @@ export const apply = Effect.fn("ACPFrontendMapper.apply")(function* (input: {
       })
       return
     case "tool_call": {
+      yield* finalizeText({ state: input.state, sessions: input.sessions })
+      yield* finalizeReasoning({ state: input.state, sessions: input.sessions })
       const part = yield* upsertTool({
         state: input.state,
         sessions: input.sessions,
@@ -73,6 +75,7 @@ export const apply = Effect.fn("ACPFrontendMapper.apply")(function* (input: {
       return
     }
     case "tool_call_update":
+      yield* finalizeText({ state: input.state, sessions: input.sessions })
       yield* updateTool({
         state: input.state,
         sessions: input.sessions,
@@ -99,27 +102,38 @@ export const apply = Effect.fn("ACPFrontendMapper.apply")(function* (input: {
   }
 })
 
+const finalizeText = Effect.fn("ACPFrontendMapper.finalizeText")(function* (input: {
+  state: State
+  sessions: SessionInterface
+}) {
+  if (!input.state.text) return
+  input.state.text.time = {
+    start: input.state.text.time?.start ?? Date.now(),
+    end: Date.now(),
+  }
+  yield* input.sessions.updatePart(input.state.text)
+  input.state.text = undefined
+})
+
+const finalizeReasoning = Effect.fn("ACPFrontendMapper.finalizeReasoning")(function* (input: {
+  state: State
+  sessions: SessionInterface
+}) {
+  if (!input.state.reasoning) return
+  input.state.reasoning.time = {
+    start: input.state.reasoning.time.start,
+    end: Date.now(),
+  }
+  yield* input.sessions.updatePart(input.state.reasoning)
+  input.state.reasoning = undefined
+})
+
 export const finish = Effect.fn("ACPFrontendMapper.finish")(function* (input: {
   state: State
   sessions: SessionInterface
 }) {
-  if (input.state.text) {
-    input.state.text.time = {
-      start: input.state.text.time?.start ?? Date.now(),
-      end: Date.now(),
-    }
-    yield* input.sessions.updatePart(input.state.text)
-    input.state.text = undefined
-  }
-
-  if (input.state.reasoning) {
-    input.state.reasoning.time = {
-      start: input.state.reasoning.time.start,
-      end: Date.now(),
-    }
-    yield* input.sessions.updatePart(input.state.reasoning)
-    input.state.reasoning = undefined
-  }
+  yield* finalizeText(input)
+  yield* finalizeReasoning(input)
 })
 
 const appendText = Effect.fn("ACPFrontendMapper.appendText")(function* (input: {
